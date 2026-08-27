@@ -7,6 +7,7 @@ here, which is what keeps the agent layer testable without an HTTP client.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Query, Request, Response, status
@@ -145,7 +146,9 @@ async def create_session(
         extra=payload.metadata,
     )
     db.add(session)
-    await db.flush()
+    # Commit before returning, never in dependency teardown: the client may
+    # issue its next request before teardown runs. See app/db/session.py.
+    await db.commit()
     log.info("session.created", session_id=session.id, user_id=session.user_id)
     return _session_out(session, message_count=0)
 
@@ -200,6 +203,7 @@ async def get_session(session_id: str, db: DB) -> schemas.SessionDetailOut:
 async def delete_session(session_id: str, db: DB) -> Response:
     session = await _load_session(db, session_id)
     await db.delete(session)
+    await db.commit()
     log.info("session.deleted", session_id=session_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -277,7 +281,11 @@ async def send_message(
     # First real question names the chat, so the sidebar is scannable.
     if session.title == "New chat":
         session.title = payload.message[:80]
-    session.updated_at = func.now()  # type: ignore[assignment]
+    session.updated_at = datetime.now(timezone.utc)
+
+    # The whole turn - user message, assistant message, artifact, title - lands
+    # in one transaction, committed before the response is returned.
+    await db.commit()
 
     return schemas.ChatResponse(
         session_id=session.id,
@@ -337,6 +345,7 @@ async def reindex(
 
     corpus_dir = ensure_corpus(refresh=payload.refresh_corpus)
     report = await ingest(db, corpus_dir=corpus_dir, force=payload.force)
+    await db.commit()
     return schemas.ReindexResponse(**report.to_dict())
 
 

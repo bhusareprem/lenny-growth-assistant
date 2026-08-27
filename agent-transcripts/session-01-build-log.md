@@ -1966,3 +1966,668 @@ Heredoc escaping is mangling the regexes. Writing the exporter as a file instead
 - `Bash: Export the redacted session transcript`
 
 </details>
+
+
+### Assistant (turn 235)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Verify redaction quality`
+
+</details>
+
+
+### Assistant (turn 236)
+
+Clean export, 234 turns, no leaks. Now the narrative engineering log that makes the failures legible.
+
+
+### Assistant (turn 237)
+
+<details><summary>Tool calls</summary>
+
+- `Write: C:/Users/<user>\Downloads\lenny-growth-assistant\agent-transcripts\README.md`
+
+</details>
+
+
+### Assistant (turn 238)
+
+Now the headline claim in the README needs verifying: one-command startup. Let me stop the local server and test the full Compose path.
+
+
+### Assistant (turn 239)
+
+<details><summary>Tool calls</summary>
+
+- `TaskStop`
+
+</details>
+
+
+### Assistant (turn 240)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Build Docker images`
+
+</details>
+
+
+### Assistant (turn 241)
+
+Build succeeded. But I've spotted a real trap: Compose interpolates `${OLLAMA_BASE_URL}` from `.env`, so a developer who sets `localhost` for host-based dev would silently break the container's path to Ollama. Using a distinct variable name so the two can't collide.
+
+
+### Assistant (turn 242)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Isolate Ollama URL from .env interpolation`
+
+</details>
+
+
+### Assistant (turn 243)
+
+Now the real end-to-end test of the documented startup path.
+
+
+### Assistant (turn 244)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Tear down and start fresh stack`
+
+</details>
+
+
+### Assistant (turn 245)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Verify containerised stack health`
+
+</details>
+
+
+### Assistant (turn 246)
+
+**One-command startup verified from a completely clean state:** corpus cloned, 60 documents indexed, all 1,420 chunks embedded through `host.docker.internal`, `status: ok`, empty checks. Let me confirm a real answer through the container.
+
+
+### Assistant (turn 247)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: End-to-end test through containerised stack`
+
+</details>
+
+
+### Assistant (turn 248)
+
+Both paths work through the container. Note `matched: False` — llama3.2 cited by section name instead of `[n]` markers, so the honesty mechanism correctly engaged and the UI will label those "sources consulted" rather than fake citations.
+
+Final secrets audit before pushing.
+
+
+### Assistant (turn 249)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Audit for secrets before commit`
+
+</details>
+
+
+### Assistant (turn 250)
+
+Clean: `.env` and the licensed corpus both excluded, no secret-shaped strings. Let me review the file list and commit.
+
+
+### Assistant (turn 251)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Review staged files`
+
+</details>
+
+
+### Assistant (turn 252)
+
+One build artifact slipped in. Fixing that, then committing.
+
+
+### Assistant (turn 253)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Commit the project`
+
+</details>
+
+
+### Assistant (turn 254)
+
+Committed. Now installing GitHub CLI so we can push.
+
+
+### Assistant (turn 255)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Install GitHub CLI via winget`
+
+</details>
+
+
+### Assistant (turn 256)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Verify gh install and auth status`
+
+</details>
+
+
+### Assistant (turn 257)
+
+`gh` is installed (2.98.0) but not authenticated — that needs your browser, and I won't handle credentials. Run this and I'll push immediately after:
+
+```bash
+gh auth login --web --git-protocol https
+```
+
+While that's pending, let me verify the containerised UI serves correctly.
+
+
+### Assistant (turn 258)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__navigate: http://localhost:8000`
+
+</details>
+
+
+### Assistant (turn 259)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__javascript_tool`
+
+</details>
+
+
+### Assistant (turn 260)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__javascript_tool`
+
+</details>
+
+
+### Assistant (turn 261)
+
+Container-served UI verified: single origin, `status: ok`, 60 docs / 1,420 chunks, correct provider pill. Final verification pass.
+
+
+### Assistant (turn 262)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Final verification pass`
+
+</details>
+
+
+### Assistant (turn 263)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Check if GitHub auth completed`
+
+</details>
+
+
+### Assistant (turn 264)
+
+The build is complete and verified. Everything is committed and waiting on your GitHub login to push.
+
+## What's built
+
+**`C:/Users/<user>\Downloads\lenny-growth-assistant`** — 71 files, one commit, working tree clean.
+
+Verified end-to-end from a **completely clean state** (`docker compose down -v` → `up`): corpus cloned, 60 documents → 1,420 chunks, all embedded via host Ollama, `status: ok` with an empty `checks` array, and both a grounded answer and an honest refusal returned through the container.
+
+| Deliverable | State |
+|---|---|
+| Source | FastAPI + PostgreSQL/pgvector + React SPA, 4 providers behind one env var |
+| [README.md](README.md) | Setup, config, model switching, troubleshooting table, known limitations |
+| [docs/PRD.md](docs/PRD.md) | Discovery brief, metrics, assumptions, scope, risks, what went wrong |
+| [docs/architecture.md](docs/architecture.md) | Schema, endpoints, retrieval, routing, artifact security, deployment |
+| [docs/design.md](docs/design.md) | UI principles, IA, states, responsive, accessibility |
+| [docs/manual-test-plan.md](docs/manual-test-plan.md) | Scripted walkthrough including failure paths |
+| [agent-transcripts/](agent-transcripts/) | 234-turn redacted log + narrative of 9 failures |
+| Tests | **138 passing in 2.5s, zero infrastructure required**; lint + TS typecheck clean |
+
+## Things worth knowing
+
+**Three production bugs were caught by tests, not by clicking:** a validation handler that returned 500 instead of 422 for *every* custom-validator failure, two sanitiser bypasses, and the citation-marker regression.
+
+**Two thresholds were measured, not guessed.** The first relevance gate was mathematically unreachable — it thresholded fused RRF scores, which max out at 1/61 ≈ 0.0164, below the 0.02 floor, so every query returned zero results while logging 30 healthy hits. Replaced with IDF-weighted coverage, tuned against 25 labelled queries.
+
+**Artifact isolation is proven, not asserted** — in the browser, `iframe.sandbox.length === 0` and `iframe.contentDocument` throws.
+
+**Two things I'd flag to an evaluator**, both documented rather than hidden: llama3.2 occasionally misattributes a quote to the wrong speaker *within* correctly retrieved sources, and the Claude Agent SDK path is implemented but unverified against a live key, since you directed Groq + Ollama.
+
+## What needs you
+
+**1. GitHub push** — authenticate, then I'll create the public repo and push:
+
+```bash
+gh auth login --web --git-protocol https
+```
+
+**2. Demo video** (2–3 min, camera on) — I can't record this. Suggested beats: the problem (750k words, unusable at decision time) → ask a question, click a citation into the timestamp → **ask something out-of-corpus and get the refusal** → artifact viewer's Blocked tab → status panel showing local Ollama → close on the deterministic-retrieval trade-off.
+
+The refusal is the strongest 15 seconds you have; most submissions won't show one.
+
+**3. Groq keys** — send them whenever and I'll wire them in as the cloud path. Everything works on Ollama alone right now, so this isn't blocking.
+
+One note: this repo must be **public** per the brief, unlike your private KSP repos.
+
+
+### User (turn 265)
+
+where should i run above command
+
+
+### Assistant (turn 266)
+
+In a **normal Windows terminal on your machine**, not here. The directory doesn't matter — `gh auth login` stores credentials globally.
+
+**Open PowerShell:** press `Win`, type `PowerShell`, hit Enter. It must be a **newly opened** window, since `gh` was installed a few minutes ago and older windows won't have it on PATH yet.
+
+Then run:
+
+```bash
+gh auth login
+```
+
+Answer the prompts:
+- **What account?** → `GitHub.com`
+- **Protocol?** → `HTTPS`
+- **Authenticate Git with your GitHub credentials?** → `Yes`
+- **How to authenticate?** → `Login with a web browser`
+- It shows a one-time code like `A1B2-C3D4`. Copy it, press Enter, your browser opens, paste the code, authorize.
+
+If PowerShell says `gh` isn't recognised, the PATH hasn't refreshed — use the full path instead:
+
+```bash
+& "C:\Program Files\GitHub CLI\gh.exe" auth login
+```
+
+Once it prints `Logged in as bhusareprem`, tell me and I'll create the public repo and push in one step from here.
+
+I'm deliberately not running this for you: it's an interactive browser login, and handling your credentials isn't something I'll do. You authorize it in your own browser; after that I only use the stored session to push code.
+
+
+### User (turn 267)
+
+yes done
+
+
+### Assistant (turn 268)
+
+You've hit your monthly spend limit · raise it at claude.ai/settings/usage?from=cc_cli_limit_message · your session limit resets 5am (America/New_York)
+
+
+### User (turn 269)
+
+Try again
+
+
+### Assistant (turn 270)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Check GitHub auth status`
+
+</details>
+
+
+### Assistant (turn 271)
+
+Authenticated as `bhusareprem` with `repo` scope. Creating the public repo and pushing.
+
+
+### Assistant (turn 272)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Create public repo and push`
+
+</details>
+
+
+### Assistant (turn 273)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Verify pushed repo state and absence of secrets`
+
+</details>
+
+
+### Assistant (turn 274)
+
+Pushed and verified.
+
+**https://github.com/bhusareprem/lenny-growth-assistant** — public, `main`, 88 tree entries, local and remote in sync. Confirmed on the remote: **no `.env`, no corpus files**.
+
+## Deliverables status
+
+| # | Deliverable | State |
+|---|---|---|
+| 1 | Public GitHub repo | ✅ Pushed, no secrets |
+| 2 | README.md | ✅ |
+| 3 | PRD | ✅ `docs/PRD.md` |
+| 4 | design.md | ✅ `docs/design.md` |
+| 5 | architecture.md | ✅ `docs/architecture.md` |
+| 6 | Agent transcripts | ✅ `agent-transcripts/` — 234-turn redacted log + failure narrative |
+| 7 | Tests | ✅ 138 automated + `docs/manual-test-plan.md` |
+| 8 | Demo video | ❌ **Only you can record this** |
+
+## What's left
+
+**The demo video** is the one blocker — 2 to 3 minutes, camera on, uploaded to YouTube. A suggested run of show:
+
+- **0:00–0:20** — The problem: 750k words of the best product/growth material, unusable at decision time.
+- **0:20–1:00** — Ask a real question. Expand sources, **click a citation** so it lands on the timestamped moment.
+- **1:00–1:20** — Ask something out-of-corpus (the Honda timing belt one). It refuses in milliseconds without calling a model. **This is your strongest 15 seconds** — most submissions can't show a refusal.
+- **1:20–1:50** — Artifact viewer, then open the **Blocked** tab to show the isolation policy.
+- **1:50–2:10** — Status panel: local Ollama, llama3.2, 60 sources, hybrid search.
+- **2:10–2:40** — The trade-off: retrieval is deterministic, not the model's choice, because the mandated 2 GB local model answers from memory when allowed to. You lose multi-hop; you gain grounding that behaves identically on a laptop and in the cloud.
+
+The stack is up right now at **http://localhost:8000** with a warm model, so recording should be responsive. Worth doing one throwaway question first — the very first turn after a cold start takes ~60s.
+
+Two optional things I can still do if you want them: wire in your **Groq keys** as the verified cloud path (currently Ollama-only), or record a `qa_smoke`-style script that pre-warms the model and seeds a clean demo session so the video has no dead air.
+
+
+### User (turn 275)
+
+its not working the link
+
+
+### Assistant (turn 276)
+
+Let me check both links — the repo and the local app.
+
+
+### Assistant (turn 277)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Check repo and local app availability`
+
+</details>
+
+
+### Assistant (turn 278)
+
+Diagnosed: the **GitHub link is fine** (HTTP 200, `private: false` — try it again, possibly a browser cache or a stale tab). The broken one is **http://localhost:8000** — Docker Desktop has shut down since we tested, so the containers are gone.
+
+Restarting it.
+
+
+### Assistant (turn 279)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Start Docker Desktop and wait for daemon`
+
+</details>
+
+
+### Assistant (turn 280)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Bring the stack back up and verify`
+
+</details>
+
+
+### Assistant (turn 281)
+
+Back up: `status: ok`, 60 docs / 1,420 chunks all embedded, no warnings. Ingest exited in seconds this time because the volumes persisted and checksums were unchanged — the incremental refresh doing its job.
+
+Let me confirm the page serves and warm the model so it's responsive if you record.
+
+
+### Assistant (turn 282)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Verify page and warm the local model`
+
+</details>
+
+
+### Assistant (turn 283)
+
+Both links are working now.
+
+**GitHub:** https://github.com/bhusareprem/lenny-growth-assistant — this was never broken. It returns HTTP 200 unauthenticated with `"private": false`. If it still fails for you, it's a stale tab or cache; try a hard refresh or an incognito window.
+
+**Local app:** http://localhost:8000 — this was genuinely down. Docker Desktop had shut down since we tested, taking the containers with it. Restarted and verified: `status: ok`, 60 docs / 1,420 chunks all embedded, no warnings.
+
+I also warmed the model for you: cold turn was 40.9s, warm turn **14.3s** with hybrid retrieval and 2 citations. Both warmup sessions were deleted, so the sidebar is clean for recording.
+
+One thing to know before you record: **Docker Desktop must be running**, and the model goes cold again after 10 minutes idle (`keep_alive`). If the app looks dead later, that's almost always Docker being stopped rather than anything in the code. To bring it back:
+
+```bash
+docker compose -f C:/Users/<user>\Downloads\lenny-growth-assistant\docker-compose.yml up -d
+```
+
+Then ask one throwaway question to warm the model before you hit record, or your first take will have a 40-second pause in it.
+
+
+### User (turn 284)
+
+okay do QA test and also give me script for video according to requirement
+
+
+### Assistant (turn 285)
+
+Two things then. Running a full QA pass against the live stack first.
+
+
+### Assistant (turn 286)
+
+<details><summary>Tool calls</summary>
+
+- `Write: C:/Users/<user>\Downloads\lenny-growth-assistant\scripts\qa_smoke.py`
+
+</details>
+
+
+### Assistant (turn 287)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Run full QA smoke test against live stack`
+
+</details>
+
+
+### Assistant (turn 288)
+
+Four failures, and they cluster: everything about **reading back persisted state**. DELETE returns 204 but the session survives. That's a real bug. Let me debug against the database directly.
+
+
+### Assistant (turn 289)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Trace persistence against the database directly`
+
+</details>
+
+
+### Assistant (turn 290)
+
+Manually everything works — 2 messages persisted, DELETE removes the row. So the failures are in my QA script, which ignores error responses. Let me check the API logs from that run.
+
+
+### Assistant (turn 291)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Look for API errors during QA run`
+
+</details>
+
+
+### Assistant (turn 292)
+
+No 500s at all — every request succeeded. So my script's assertions are wrong, not the app. Let me trace the actual request sequence.
+
+
+### Assistant (turn 293)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Trace request/status sequence`
+
+</details>
+
+
+### Assistant (turn 294)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Inspect raw log line format`
+
+</details>
+
+
+### Assistant (turn 295)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Show request sequence from QA persistence section`
+
+</details>
+
+
+### Assistant (turn 296)
+
+The log is decisive — DELETE returns 204, then GET on the same id still returns 200:
+
+```
+DELETE /api/sessions/1981946a -> 204
+GET    /api/sessions/1981946a -> 200   ← should be 404
+```
+
+Let me check whether the row actually survived in Postgres.
+
+
+### Assistant (turn 297)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Determine if delete persisted or API served stale data`
+
+</details>
+
+
+### Assistant (turn 298)
+
+Found a genuine production bug, and my QA script caught it precisely *because* it fires requests back-to-back like a real SPA does.
+
+The row **is** correctly deleted and the API **now** returns 404. The problem is timing: `get_db` commits in FastAPI's dependency teardown, which runs **after the response is sent**. So a client can receive `204`/`200`, immediately issue a follow-up read, and race the commit. My manual curl tests passed only because shell latency hid it.
+
+My frontend does exactly this — `refreshSessions()` fires right after a send. Fixing the transaction boundary.
+
+
+### Assistant (turn 299)
+
+<details><summary>Tool calls</summary>
+
+- `Read: C:/Users/<user>\Downloads\lenny-growth-assistant\app\db\session.py`
+
+</details>
+
+
+### Assistant (turn 300)
+
+<details><summary>Tool calls</summary>
+
+- `Edit: C:/Users/<user>\Downloads\lenny-growth-assistant\app\db\session.py`
+
+</details>
+
+
+### Assistant (turn 301)
+
+Now making every mutating route commit before it returns.
+
+
+### Assistant (turn 302)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Add explicit commits to mutating routes`
+
+</details>
+
+
+### Assistant (turn 303)
+
+Now fixing the two genuine bugs in my QA script (it silently ignored error responses and asserted auto-titling on an explicitly-titled session), then rebuilding.
+
+
+### Assistant (turn 304)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Fix QA script and re-run unit tests`
+
+</details>
+
+
+### Assistant (turn 305)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Rebuild and restart API with the commit fix`
+
+</details>
+
+
+### Assistant (turn 306)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Re-run QA after the commit fix`
+
+</details>
+
+
+### Assistant (turn 307)
+
+**64 passed, 0 failed.** The read-after-write race is fixed. Let me verify the browser still works and push.
+
+
+### Assistant (turn 308)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Document the bug and commit`
+
+</details>

@@ -53,17 +53,31 @@ def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
 
 
 async def get_db() -> AsyncIterator[AsyncSession]:
-    """FastAPI dependency yielding a transactional session.
+    """FastAPI dependency yielding a session.
 
-    Any driver-level failure is translated into `DatabaseUnavailable` so the
-    API returns a documented 503 with a fix hint instead of a raw traceback.
+    **This dependency does not commit.** Mutating routes must call
+    `await db.commit()` themselves before returning.
+
+    That is not a style preference, it is a correctness requirement. Code after
+    the `yield` in a FastAPI dependency runs during teardown, *after* the
+    response has been handed back to the client. Committing there means a
+    client can receive `200 OK`, immediately issue a follow-up read, and race
+    the commit - observing state from before its own write. The SPA does
+    exactly this: it refreshes the session list the moment a send returns.
+
+    The symptom is brutal to debug, because it only appears when requests are
+    issued back to back. Manual testing with curl never reproduced it; the
+    back-to-back QA smoke test did, showing a DELETE return 204 and the very
+    next GET still return 200.
+
+    Teardown here therefore only rolls back and closes, which is safe to do
+    after the response.
     """
     factory = get_sessionmaker()
     try:
         async with factory() as session:
             try:
                 yield session
-                await session.commit()
             except Exception:
                 await session.rollback()
                 raise

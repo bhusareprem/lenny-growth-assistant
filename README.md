@@ -216,6 +216,21 @@ Lint:
 python -m ruff check app scripts tests
 ```
 
+### End-to-end QA against a running instance
+
+The unit suite stubs the model. To exercise the real API, real model and real
+corpus, with the stack up:
+
+```bash
+python scripts/qa_smoke.py
+```
+
+**64 checks in ~60s** covering grounding, citation resolution, honest refusal,
+session isolation, artifact sanitisation, structured errors and persistence. It
+issues requests back to back with no delay, which is what a browser does - and
+what caught a read-after-write race that manual curl testing could not
+reproduce.
+
 A manual UI test plan is in [docs/manual-test-plan.md](docs/manual-test-plan.md).
 
 ---

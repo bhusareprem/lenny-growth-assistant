@@ -15,7 +15,7 @@ Only this project's session was exported. The machine held ~58 MB of transcripts
 
 ## The failures, in order
 
-Nine problems worth recording. Six were real defects, two were tests catching production bugs, and one was a test that was wrong about the code.
+Ten problems worth recording. Seven were real defects, two were caught by tests rather than by using the app, and one was a test that was wrong about the code.
 
 ### 1. The relevance gate was in a place where it could never work
 
@@ -131,7 +131,34 @@ Result: 2 attempts, correct HTML artifact, clean title.
 
 ---
 
-### 8. A test that was wrong about the code
+### 8. A read-after-write race, found only by firing requests back to back
+
+**Symptom.** The end-to-end QA script reported `DELETE -> 204` immediately
+followed by `GET -> 200` on the same session, and turns that had just been
+written coming back missing from history.
+
+**Not reproducible by hand.** Running the identical sequence with curl always
+passed, and the database always showed the correct final state. Shell latency
+between commands was enough to hide it.
+
+**Cause.** `get_db` committed after the `yield`. Code after a `yield` in a
+FastAPI dependency runs during teardown, *after* the response has gone back to
+the client. So a client could receive `204`, immediately issue a read, and race
+the commit - seeing state from before its own write. The SPA does exactly this:
+it refreshes the session list the moment a send returns.
+
+**Fix.** The dependency no longer commits; every mutating route commits
+explicitly before returning. Teardown only rolls back and closes, which is safe
+to do after the response.
+
+**Why it matters.** This is the one bug in the build that unit tests could not
+have caught: they drive the app in-process through ASGI, where the timing
+window does not exist. It took a client hitting a real server with no delay
+between requests.
+
+---
+
+### 9. A test that was wrong about the code
 
 `test_bm25_ranks_the_relevant_chunk_first` asserted that `"how do I price my product"` would rank the pricing chunk first. It ranked a different one.
 
@@ -141,7 +168,7 @@ Rather than change the query until the test passed, the limitation was made expl
 
 ---
 
-### 9. An accessibility bug found by reading the accessibility tree
+### 10. An accessibility bug found by reading the accessibility tree
 
 The session list rendered as `button [ref_7]` with **no accessible name**, because the row was a `<button>` containing a `role="button"` span for delete. Nested interactive controls are invalid HTML and break name computation.
 
@@ -153,4 +180,11 @@ Restructured into a container `<div>` with the open and delete actions as siblin
 
 Three production defects were found by tests rather than by using the app: the 500-instead-of-422 handler crash, the sanitiser bypasses, and the citation-marker regression. Two more (the retrieval gate, the missing URLs) were found by measuring behaviour against labelled data rather than by reading code.
 
-The pattern worth taking from this: **every bug that mattered was invisible from the UI.** Citations rendered. Answers appeared. The sanitiser reported success. Only measurement, adversarial input, and reading the accessibility tree surfaced them.
+A fourth - the read-after-write race - was found only by the end-to-end QA
+script, because it required a real client issuing requests over a socket with
+no pause between them.
+
+The pattern worth taking from this: **every bug that mattered was invisible from
+the UI.** Citations rendered. Answers appeared. The sanitiser reported success.
+The delete returned 204. Only measurement, adversarial input, back-to-back
+request timing, and reading the accessibility tree surfaced them.
