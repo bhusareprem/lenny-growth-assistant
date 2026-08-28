@@ -1,120 +1,126 @@
 # Demo video script
 
-**Target: 2:45.** Requirements covered: the problem, the product, local Ollama demonstrated, one technical trade-off explained. Camera on throughout (picture-in-picture over the screen recording is fine).
+**Target 2:45.** Covers the four graded requirements: explain the problem, show the product, demonstrate local Ollama, cover one technical trade-off. Camera on throughout, picture-in-picture over the screen recording.
 
 ---
 
-## Pre-flight (do this before you hit record)
+## Pre-flight
 
 1. **Docker running**, stack up:
    ```bash
    docker compose -f C:\Users\bhusa\Downloads\lenny-growth-assistant\docker-compose.yml up -d
    ```
-2. **Warm the model.** Ask one throwaway question and delete that chat. Cold start is ~40s; warm is ~15s. Skipping this puts a 40-second hole in take one.
-3. **Clear the sidebar** so old chats don't clutter the frame.
-4. **Open two tabs**: the app on `localhost:8000`, and a terminal for the Ollama proof.
-5. **Browser at ~1280px** so the three-pane layout shows without squashing.
+2. **Warm the model.** Ask one throwaway question, then delete that chat. Cold start is ~40s, warm is ~15s.
+3. **Clear the sidebar** so old chats are not in frame.
+4. **Two tabs**: the app on `localhost:8000`, and a terminal.
+5. **Browser at ~1280px** so all three panes fit.
+6. Confirm health is clean:
+   ```bash
+   curl -s http://localhost:8000/api/health
+   ```
+   You want `"status": "ok"` and an empty `checks` array.
 
-**The one thing that will bite you:** every answer takes ~15 seconds. Do not wait in silence. Every beat below is written so you **ask, then keep talking** while it generates.
+**Do not run a live Gemini generation on camera.** The free-tier quota was spent measuring essay output and resets on its own schedule. Showing it as `ready` in the status panel proves the toggle without risking a 429 mid-take.
 
----
-
-## 0:00 – 0:25 · The problem (camera)
-
-> "Lenny's Podcast is the highest-signal corpus in product and growth. It's also about three quarters of a million words, which makes it completely unusable at the moment you actually need it: Tuesday afternoon, mid-decision.
->
-> The workaround most teams use is asking a general chatbot. That's the dangerous one, because it answers *every* product question confidently, and its wrong answers look exactly like its right ones.
->
-> So I built an assistant where you can check the answer."
+**Every answer takes ~15 seconds.** Each beat below is written so you ask, then keep talking.
 
 ---
 
-## 0:25 – 1:10 · Grounded answer with real provenance
+## [1 of 4: THE PROBLEM] — 0:00, on camera
 
-**Do:** Type `How do you know when you have product/market fit?` and hit Enter **immediately**, then talk over the wait.
+Lenny's Podcast is the highest-signal corpus in product and growth. It's also about three quarters of a million words, which makes it completely unusable at the moment you actually need it. Tuesday afternoon, mid-decision.
 
-> "Behind this, every turn does the same thing: it searches 1,420 passages from 60 sources using hybrid retrieval, BM25 plus vector search, and only then calls the model, with the evidence already in hand."
+The workaround most teams use is asking a general chatbot. That's the dangerous one, because it answers every product question confidently, and its wrong answers look exactly like its right ones.
 
-**Do:** When it lands, click **Show sources**, then click a source title.
-
-> "Every claim carries a marker, and every marker resolves to a real passage. And these aren't decorative: clicking one opens the episode **at the timestamp the quote came from.**"
-
-**Do:** Let the YouTube tab load at the timestamp. Come back.
-
-> "That's the difference between a citation and a link."
+So I built an assistant where you can check the answer.
 
 ---
 
-## 1:10 – 1:32 · The refusal (your strongest moment)
+## [2 of 4: THE PRODUCT] — 0:25
 
-**Do:** Ask `How do I replace the timing belt on a Honda Civic?`
+**Type:** `How do you know when you have product/market fit?` — hit Enter immediately, then talk.
 
-> "Now watch what happens when the corpus doesn't cover something."
+Behind this, every turn does the same thing. It searches 1,420 passages from 60 sources using hybrid retrieval, keyword search plus vector search, and only then calls the model, with the evidence already in hand.
 
-**Do:** It returns almost instantly.
+**When it lands: click "Show sources", then click a source title.**
 
-> "That came back in under a second, because it never called the model at all. Retrieval scores how much of your question actually exists in the corpus, and below a measured threshold it stops and says so.
->
-> A RAG system that always answers can't be trusted on the answers it *should* give. This is the feature, not the limitation."
+Every claim carries a marker, and every marker resolves to a real passage. And these aren't decorative. Clicking one opens the episode at the timestamp the quote came from.
+
+**Let the tab load, come back.**
+
+That's the difference between a citation and a link.
+
+### 1:10 — the refusal
+
+**Type:** `How do I replace the timing belt on a Honda Civic?`
+
+Now watch what happens when the corpus doesn't cover something.
+
+**It returns almost instantly. Pause and let it sit.**
+
+Under a second, because it never called the model at all. Retrieval scores how much of your question actually exists in the corpus, and below a measured threshold it stops and says so.
+
+A system that always answers can't be trusted on the answers it should give. That's the feature, not the limitation.
+
+### 1:32 — artifacts
+
+**Click the Artifact pill. Type:** `Make an HTML one-pager on running effective user interviews` — keep talking.
+
+It also generates documents. This is model-written HTML, which means it's untrusted input. The model wrote it after reading my message and passages retrieved for me.
+
+**Panel opens. Click the "Blocked" tab.**
+
+So it renders in a sandboxed iframe with zero permissions, behind a server-side sanitiser and a locked-down content security policy. Three independent layers, and this tab shows you exactly what was stripped.
 
 ---
 
-## 1:32 – 1:55 · Artifacts, and treating model output as untrusted
+## [3 of 4: LOCAL OLLAMA] — 1:55
 
-**Do:** Click the **Artifact** pill, ask `Make an HTML one-pager on running effective user interviews`. Talk while it works.
+**Point at the line under an answer: `ollama · llama3.2 · 14.3s`.**
 
-> "It also generates documents. This is model-written HTML, which means it's untrusted input: the model wrote it after reading my message and passages retrieved for me."
+Everything you've seen ran entirely on my laptop. Llama 3.2 through Ollama generating, nomic-embed-text doing the vector search, Postgres with pgvector storing it. No API key touched any of that.
 
-**Do:** When the panel opens, click the **Blocked** tab.
-
-> "So it renders in a sandboxed iframe with zero permissions, behind a server-side sanitiser and a locked-down CSP. Three independent layers, and this tab shows you exactly what was stripped. A security control you can't see is one nobody trusts."
-
----
-
-## 1:55 – 2:15 · Local Ollama, proven
-
-**Do:** Point at the provenance line under an answer (`ollama · llama3.2 · 14.3s`), then open the status panel.
-
-> "Everything you've seen ran entirely on my laptop. Llama 3.2 through Ollama, generating; nomic-embed-text doing the vector search; Postgres with pgvector storing it. No API key touched this demo."
-
-**Do:** Cut to the terminal:
-
+**Terminal:**
 ```bash
 ollama ps
 ```
 
-> "There's the model, resident in memory. Switching to Groq or Claude is one environment variable, no code change, and there's a fallback chain if a provider goes down."
+There's the model, resident in memory.
+
+**Back to the app. Open the status panel in the sidebar.**
+
+And the provider is a config switch, not a code change. Gemini is configured here and showing as ready. One environment variable moves the whole system to it, with a fallback chain if a provider goes down. Adding Gemini took one factory function, because the abstraction was already the right shape.
 
 ---
 
-## 2:15 – 2:45 · The trade-off (camera)
+## [4 of 4: THE TRADE-OFF] — 2:15, back to camera
 
-> "One trade-off worth naming. The obvious design is to give the model a search tool and let it decide when to use it. I tried that, and this model won't do it reliably: it skips the search and answers from memory, which is exactly the failure the product exists to prevent.
->
-> So retrieval isn't the model's decision. Every grounded turn searches first, always.
->
-> What I gave up is multi-hop reasoning: a question needing two chained lookups only gets one round of evidence. What I got back is grounding that behaves identically on a two-gigabyte local model and a frontier one.
->
-> For an assistant whose entire value is trustworthy citations, predictable beats clever. That's the call I'd defend."
+One trade-off worth naming. The obvious design is to give the model a search tool and let it decide when to use it. I tried that, and this model won't do it reliably. It skips the search and answers from memory, which is exactly the failure the product exists to prevent.
 
-**End.** Don't add a sign-off; the trade-off is a stronger last line.
+So retrieval isn't the model's decision. Every grounded turn searches first, always.
+
+What I gave up is multi-hop reasoning. A question needing two chained lookups only gets one round of evidence. What I got back is grounding that behaves identically on a two-gigabyte local model and a frontier one.
+
+For an assistant whose entire value is trustworthy citations, predictable beats clever. That's the call I'd defend.
+
+**Stop recording. No sign-off.**
 
 ---
 
-## If you need to cut to 2:00
+## Variants
 
-Drop the artifact beat (1:32–1:55) entirely. Keep the refusal and the trade-off, which are the two things that differentiate this submission.
+**Cut to 2:00:** drop the artifact beat (1:32–1:55). Never cut the refusal or the trade-off.
 
-## If you have room for 3:00
+**Extend to 3:00:** after the first answer, add *"And it holds context"* → ask `What about for B2B?` → show it stays on topic. Fifteen seconds, demonstrates the session requirement explicitly.
 
-After the first answer, add: *"And it holds context"* → ask `What about for B2B?` → show it stays on topic. Fifteen seconds, and it demonstrates the session requirement explicitly.
+**If asked about essay quality:** the honest line is *"the skill encodes the Ship 30 principles as data and validates every draft against them. On a 2 GB local model it meets some constraints per run and the validator reports the rest; on Gemini it meets the full spec about half the time. I measured it rather than guessed, and it's documented."*
 
 ---
 
 ## Delivery notes
 
-- **Say numbers.** "1,420 passages", "60 sources", "under a second", "14 seconds". Specifics read as someone who measured; adjectives read as someone who didn't.
-- **Don't apologise for the local model.** Thin prose from llama3.2 is expected and you've documented it. If you feel the urge to excuse it, say instead: *"the architecture is model-independent, this is a 2 GB model on a laptop."*
-- **Let the refusal land.** Pause a beat after it appears. Most submissions can't show one.
-- **Camera framing:** picture-in-picture in a corner, screen recording as the main frame. Face on for the opening and closing beats especially.
-- **One take is fine.** Don't over-produce; the assignment is judging judgment, not editing.
+- **Say numbers.** 1,420 passages, 60 sources, under a second, 14 seconds. Specifics read as someone who measured.
+- **Don't apologise for llama3.2's thin prose.** If you feel the urge, say *"the architecture is model-independent, this is a 2 GB model on a laptop"*.
+- **Let the refusal land.** Pause a beat. Most submissions can't show one.
+- **One take is fine.** The assignment judges judgment, not editing.
+- **Upload to YouTube as Unlisted**, then paste the link into the submission form.
