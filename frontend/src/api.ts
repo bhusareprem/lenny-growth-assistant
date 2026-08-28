@@ -22,10 +22,17 @@ export class ApiError extends Error {
   hint: string;
   requestId: string;
   status: number;
+  details: Record<string, unknown>;
 
   constructor(
     message: string,
-    opts: { code?: string; hint?: string; requestId?: string; status?: number } = {},
+    opts: {
+      code?: string;
+      hint?: string;
+      requestId?: string;
+      status?: number;
+      details?: Record<string, unknown>;
+    } = {},
   ) {
     super(message);
     this.name = "ApiError";
@@ -33,6 +40,13 @@ export class ApiError extends Error {
     this.hint = opts.hint ?? "";
     this.requestId = opts.requestId ?? "";
     this.status = opts.status ?? 0;
+    this.details = opts.details ?? {};
+  }
+
+  /** The provider the user pinned, when that pin is what failed. */
+  get pinnedProvider(): string | null {
+    const pinned = this.details.pinned;
+    return typeof pinned === "string" ? pinned : null;
   }
 }
 
@@ -69,6 +83,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         hint: envelope.error.hint,
         requestId: envelope.error.request_id,
         status: response.status,
+        details: envelope.error.details ?? {},
       });
     }
     throw new ApiError(`Request failed (${response.status}).`, {

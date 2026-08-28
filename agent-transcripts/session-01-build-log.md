@@ -5023,3 +5023,363 @@ Restoring the default and documenting the real numbers.
 - `Bash: Final QA, export transcript, push`
 
 </details>
+
+
+### Assistant (turn 534)
+
+New key works. I spent **~4,000 tokens total** testing it — it refills at 8,000/minute, so your demo quota is untouched.
+
+## What I found
+
+Groq authenticates and `openai/gpt-oss-120b` is available. Your limits: **8,000 tokens/minute, 1,000 requests/day**.
+
+The blocker was never the key — it's context size. Measured cost per grounded turn:
+
+| `RETRIEVAL_TOP_K` | Tokens/turn | On Groq free tier |
+|---|---|---|
+| 8 (default) | ~9,000 | **Always 413s** — exceeds the ceiling on a single request |
+| 5 | ~5,500 | Fits, but ~1 question/minute |
+| 3 | ~3,400 | **Works — 1.7s, cited answer** |
+
+I left the default at **8**. One provider's free tier shouldn't degrade answer quality for Ollama and Gemini, which have no such limit. The lever is documented with the numbers behind it.
+
+## For your demo
+
+**Use Ollama (default) or Gemini** — both handle `top_k=8` fine, and the picker lets you switch live.
+
+**If you want to show Groq specifically**, set `RETRIEVAL_TOP_K=3` in `.env` and restart. It's genuinely impressive at 1.7 seconds versus Ollama's ~15 — but you'll get fewer sources per answer, so I wouldn't lead with it right after showing citations.
+
+## Also fixed
+
+The 413 error was useless: the limit and requested size sit at the *end* of the provider's `error.message`, behind a long JSON prefix, so truncating the raw body threw away exactly the numbers you need. It now extracts and shows the provider's own message.
+
+## State
+
+**167 tests, QA smoke 64/64.** Three providers verified reachable and selectable from the UI: `ollama`, `groq`, `gemini`. All pushed.
+
+The old key is redacted in the committed transcript (`leak check clean`), and you've rotated it anyway — so that's closed out.
+
+
+### User (turn 535)
+
+okay is gitup updated ill go for demo and submission now ?
+
+
+### Assistant (turn 536)
+
+Let me verify properly before you go.
+
+
+### Assistant (turn 537)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Final pre-submission verification`
+
+</details>
+
+
+### Assistant (turn 538)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Confirm stack ready and warm the model`
+
+</details>
+
+
+### Assistant (turn 539)
+
+Everything checks out. **You're good to record and submit.**
+
+## Repo
+
+**https://github.com/bhusareprem/lenny-growth-assistant** — PUBLIC, in sync, nothing uncommitted, 89 files.
+
+All 7 code deliverables present: README, PRD, design.md, architecture.md, manual test plan, agent transcripts (+ narrative), 6 test files, docker-compose, .env.example. **No `.env` and no corpus files on the remote.**
+
+## Stack is live and warm
+
+```
+api  [Up, healthy]     db  [Up, healthy]
+health: ok    checks: none
+corpus: 60 docs / 1,420 chunks / hybrid search on
+ready:  ollama, groq, gemini
+```
+
+I just warmed the model — **5.8s** on that last turn, so take one won't have a 40-second pause. It goes cold after ~10 minutes idle, so ask one throwaway question if you get delayed.
+
+## One thing before you hit record
+
+The sidebar has **9 leftover test sessions** from my QA runs, including two called "hi". It'll look messy on camera. Clear them with:
+
+```bash
+curl -s http://localhost:8000/api/sessions | python -c "import sys,json;[print(s['id']) for s in json.load(sys.stdin)]" | xargs -I{} curl -s -X DELETE http://localhost:8000/api/sessions/{}
+```
+
+I didn't run it myself in case one of those sessions is yours rather than mine.
+
+## Two reminders
+
+**Docker must stay running** — if the app looks dead later, that's almost always Docker stopped, not the code. Restart with `docker compose up -d`.
+
+**Don't demo Gemini generation live** — quota. Show it in the picker instead; that proves the toggle without risking a 429.
+
+## What's outstanding
+
+Only the video. Everything else is done.
+
+One last thought: spend five minutes clicking around before recording. The "hi" bug only surfaced because you used it like a real person — my automated QA asks well-formed questions and never types "hi". Better to find anything else now than mid-take.
+
+
+### User (turn 540)
+
+clean those chats
+
+
+### Assistant (turn 541)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Review sessions before deleting`
+
+</details>
+
+
+### Assistant (turn 542)
+
+All nine are test residue from my QA runs and browser checks — no real work in there. Deleting.
+
+
+### Assistant (turn 543)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Delete all test sessions and verify`
+
+</details>
+
+
+### Assistant (turn 544)
+
+Cleared. All 9 deleted, and the cascade worked correctly:
+
+```
+sessions: 0   messages: 0   artifacts: 0   chunks: 1420 (intact)
+```
+
+The knowledge base is untouched — that's the schema separation doing its job: wiping conversations never forces a re-index.
+
+You'll now get the clean welcome screen with the four suggestion cards, which is the right opening shot.
+
+## Ready to record
+
+- Sidebar empty, welcome screen showing
+- `health: ok`, no warnings
+- Model warm (~6s last turn) — but it goes cold after ~10 min idle, so ask one throwaway question if you get delayed, and delete that chat before rolling
+- 60 docs / 1,420 chunks, hybrid search on
+- `ollama`, `groq`, `gemini` all selectable in the picker
+
+Repo is public and in sync at **https://github.com/bhusareprem/lenny-growth-assistant**.
+
+Good luck with the recording.
+
+
+### User (turn 545)
+
+any other sample questions to ask for demo
+
+
+### Assistant (turn 546)
+
+Let me test candidates against the actual corpus rather than guess — retrieval-only, so it costs no model quota.
+
+
+### Assistant (turn 547)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Test candidate demo questions against the corpus`
+
+</details>
+
+
+### Assistant (turn 548)
+
+All 15 work. The column that matters for your demo is **deep** — how many citations carry a clickable timestamp link. That's the "click a citation, land at the exact moment" moment.
+
+Let me verify some refusal candidates too.
+
+
+### Assistant (turn 549)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Verify refusal candidates`
+
+</details>
+
+
+### Assistant (turn 550)
+
+All verified against the real corpus. Here's what I'd actually use.
+
+## Best opening question
+
+**"How do you think about pricing a B2B product?"** — 8/8 citations carry clickable timestamps, drawn from **4 different guests**. That's the strongest version of the citation beat: it shows synthesis across sources *and* every citation is clickable.
+
+Runner-up: **"How do you close a six figure enterprise deal?"** — 8/8 deep links, 3 guests.
+
+⚠️ Note the question currently in your script — *"How do you know when you have product/market fit?"* — only gets **4/8** deep links. Half its sources are newsletters, which have no timestamps. Still fine, but the two above are better.
+
+## For a named-guest moment
+
+**"What does Tony Fadell say about building hardware products?"**
+**"What did Melanie Perkins learn building Canva?"**
+**"What does Adam Mosseri say about taste in product design?"**
+
+All 8/8 deep links. Single-source, so less synthesis, but very precise — good if you want to say "ask about a specific person and it finds them."
+
+## Avoid for the citation-click beat
+
+**"How did Duolingo reignite user growth?"** and **"How do you evaluate an AI product?"** — both retrieve well but score **0 deep links**, because they're newsletter posts with no timestamps. The citation would show the title with no clickable moment, which undercuts the exact point you're making.
+
+## Verified refusals
+
+Safe, tested to refuse:
+- **"How do I replace the timing belt on a Honda Civic?"** ← already in your script
+- "What is the capital of Mongolia?"
+- "How do I make sourdough bread?"
+- "What is the offside rule in football?"
+
+**Do not use these — they get answered:**
+- "Who won the 2018 World Cup?"
+- "Write me a Python script to sort a list"
+- "What is the weather in London today?"
+- "How do I file my taxes?"
+
+That last group is worth understanding: they're built from common words that genuinely appear across the corpus (*script*, *weather*, *file*, *won*), so coverage clears the threshold. The model will still say the excerpts don't support an answer — but it'll take 15 seconds instead of being an instant, clean refusal. Not what you want on camera.
+
+## Follow-up pair (if you extend to 3:00)
+
+Ask **"How do you think about pricing a B2B product?"** then **"What about for enterprise?"** — that demonstrates the follow-up rewriter inheriting context, which is an explicit requirement in the brief.
+
+
+### User (turn 551)
+
+How do you think about pricing a B2B product?
+
+The pinned provider 'groq' could not serve this request.
+You pinned 'groq' in the model picker, which bypasses the fallback chain so you see its own error. Switch the picker back to Auto to let the chain handle it, or pick another provider. See `details.attempts` for what went wrong.
+
+Request id: 825e3730a286
+
+
+### Assistant (turn 552)
+
+That's the error doing its job — you have **groq pinned** in the model picker (probably from my browser test earlier), and Groq's free tier can't serve `top_k=8`.
+
+**Immediate fix: open the status panel and click "Auto" (or "ollama").** Then resend.
+
+But a dead-end error right before a demo is bad design — it should offer the way out, not just describe it. Let me fix that.
+
+
+### Assistant (turn 553)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Add recovery action to the error card`
+
+</details>
+
+
+### Assistant (turn 554)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Rebuild and restart with the recovery action`
+
+</details>
+
+
+### Assistant (turn 555)
+
+Let me verify the recovery flow actually works in the browser — pin Groq, trigger the failure, click the button.
+
+
+### Assistant (turn 556)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__navigate: http://localhost:8000`
+
+</details>
+
+
+### Assistant (turn 557)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__javascript_tool`
+
+</details>
+
+
+### Assistant (turn 558)
+
+The failure path is right: pinned badge shown, correct error, **"Switch to Auto and retry"** button present, and the orphaned user message is cleaned up. Now the click.
+
+
+### Assistant (turn 559)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__javascript_tool`
+
+</details>
+
+
+### Assistant (turn 560)
+
+Real bug, and a classic one: I call `setProviderOverride(null)` then immediately `send()`, but `send` reads `providerOverride` from a **stale closure** — React state updates are async, so the retry went to Groq again. Fixing.
+
+
+### Assistant (turn 561)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Fix stale closure and rebuild`
+
+</details>
+
+
+### Assistant (turn 562)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__javascript_tool`
+
+</details>
+
+
+### Assistant (turn 563)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__javascript_tool`
+
+</details>
+
+
+### Assistant (turn 564)
+
+Full recovery loop verified: pin fails → error offers the fix → one click unpins, retries, and the answer lands from Ollama in 11s with 3 sources. Shipping it.
+
+
+### Assistant (turn 565)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Verify, clean sessions, and push the recovery fix`
+
+</details>

@@ -46,6 +46,11 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // null = follow the server's configured fallback chain.
   const [providerOverride, setProviderOverride] = useState<ProviderName | null>(null);
+  // Kept so a failed turn can be retried without the user retyping it.
+  const [lastAttempt, setLastAttempt] = useState<{
+    text: string;
+    skill: SkillName | null;
+  } | null>(null);
 
   const scrollAnchor = useRef<HTMLDivElement>(null);
 
@@ -124,7 +129,14 @@ export default function App() {
     }
   }
 
-  async function send(text: string, skill: SkillName | null) {
+  async function send(
+    text: string,
+    skill: SkillName | null,
+    // Explicit rather than read from state: setProviderOverride(null) does not
+    // take effect until the next render, so a "unpin and retry" that relied on
+    // state would retry against the pin it just cleared.
+    provider: ProviderName | null = providerOverride,
+  ) {
     let sessionId = activeId;
     setError(null);
 
@@ -158,13 +170,11 @@ export default function App() {
       artifact_id: null,
     };
     setMessages((prev) => [...prev, optimistic]);
+    setLastAttempt({ text, skill });
     setBusy(true);
 
     try {
-      const response = await api.sendMessage(sessionId, text, {
-        skill,
-        provider: providerOverride,
-      });
+      const response = await api.sendMessage(sessionId, text, { skill, provider });
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== optimistic.id),
         response.user_message,
@@ -183,8 +193,10 @@ export default function App() {
       }
       void refreshSessions();
     } catch (err) {
-      // Keep the user's text on screen - retyping a long brief after a
-      // transient model failure is the most annoying possible outcome.
+      // Drop the optimistic echo, since the turn did not happen. The text is
+      // preserved in `lastAttempt` so the error card can offer a retry rather
+      // than making the user type a long brief again.
+      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       setError(err as ApiError);
     } finally {
       setBusy(false);
@@ -340,6 +352,36 @@ export default function App() {
             <div className="error" role="alert">
               <strong>{error.message}</strong>
               {error.hint && <p>{error.hint}</p>}
+
+              {/* A pinned provider is a self-inflicted dead end, so offer the
+                  way out rather than only describing it. */}
+              {error.pinnedProvider && lastAttempt && (
+                <button
+                  className="error__action"
+                  onClick={() => {
+                    setProviderOverride(null);
+                    setError(null);
+                    // Pass null explicitly - the state change above is not
+                    // visible to this call.
+                    void send(lastAttempt.text, lastAttempt.skill, null);
+                  }}
+                >
+                  Switch to Auto and retry
+                </button>
+              )}
+
+              {!error.pinnedProvider && lastAttempt && (
+                <button
+                  className="error__action"
+                  onClick={() => {
+                    setError(null);
+                    void send(lastAttempt.text, lastAttempt.skill);
+                  }}
+                >
+                  Retry
+                </button>
+              )}
+
               {error.requestId && (
                 <p className="error__id">Request id: {error.requestId}</p>
               )}

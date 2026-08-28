@@ -467,6 +467,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
   font-size: 13.5px;
 }
 .error p { margin: 6px 0 0; }
+.error__action {
+  margin-top: 10px;
+  padding: 7px 14px;
+  border: 1px solid var(--danger); border-radius: var(--radius);
+  background: transparent; color: var(--danger);
+  font-size: 13px; font-weight: 600;
+}
+.error__action:hover { background: var(--danger); color: var(--surface); }
+
 .error__id { font-family: var(--mono); font-size: 11px; opacity: 0.8; }
 
 /* --------------------------------------------------------- composer */
