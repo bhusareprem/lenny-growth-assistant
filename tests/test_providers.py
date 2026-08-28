@@ -376,6 +376,28 @@ async def test_a_genuine_bug_is_not_swallowed_by_the_fallback_chain(
     assert providers["groq"].calls == 0
 
 
+async def test_pinned_provider_failure_blames_the_pin_not_the_chain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A pinned provider bypasses the chain, so "every provider failed" is both
+    inaccurate and unactionable. The hint must name the pin and the way out."""
+    providers = {
+        "ollama": _StubProvider("ollama", outcome="ok"),
+        "groq": _StubProvider("groq", outcome="down"),
+    }
+    _install(monkeypatch, providers)
+
+    with pytest.raises(AllProvidersFailed) as excinfo:
+        await registry.generate(MESSAGES, provider_override="groq")
+
+    error = excinfo.value
+    assert error.details["pinned"] == "groq"
+    hint = error.to_payload("req-1")["error"]["hint"]
+    assert "pinned" in hint and "Auto" in hint
+    # The healthy provider must not have been silently substituted.
+    assert providers["ollama"].calls == 0
+
+
 async def test_provider_override_bypasses_the_chain(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

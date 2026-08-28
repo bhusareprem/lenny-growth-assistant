@@ -78,6 +78,20 @@ class AllProvidersFailed(AppError):
     status_code = 503
     hint = "Every provider in LLM_FALLBACK_CHAIN failed. See `details.attempts` for the per-provider reason."
 
+    def to_payload(self, request_id: str) -> dict:
+        # A pinned provider bypasses the chain by design, so the default hint
+        # points at the wrong thing and gives the user nothing to do.
+        payload = super().to_payload(request_id)
+        pinned = self.details.get("pinned")
+        if pinned:
+            payload["error"]["hint"] = (
+                f"You pinned '{pinned}' in the model picker, which bypasses the "
+                "fallback chain so you see its own error. Switch the picker back "
+                "to Auto to let the chain handle it, or pick another provider. "
+                "See `details.attempts` for what went wrong."
+            )
+        return payload
+
 
 class DatabaseUnavailable(AppError):
     code = "database_unavailable"

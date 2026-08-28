@@ -1,21 +1,31 @@
-/** System status, always visible.
+/** System status, and the model switch.
  *
- *  The brief asks for the selected provider to be visible in the UI, but the
- *  more useful requirement is the one behind it: an evaluator should be able to
- *  tell *at a glance* whether the thing in front of them is fully working,
- *  running degraded, or broken - and if degraded, what to type to fix it.
- *  `/api/health` already computes that; this renders it.
+ *  The brief asks for the selected provider to be visible. Visible is the floor:
+ *  an evaluator comparing a local model against a cloud one should be able to
+ *  do it without editing `.env` and restarting, so the provider rows are also
+ *  the control.
+ *
+ *  Only providers that are actually reachable can be selected. A provider with
+ *  no key is shown, greyed, with the reason - hiding it would make the model
+ *  toggle look narrower than it is, and disabling it without saying why is
+ *  the kind of dead end that wastes ten minutes.
+ *
+ *  "Auto" is the default and defers to `LLM_FALLBACK_CHAIN`, so the fallback
+ *  behaviour stays the norm rather than something you have to opt back into.
  */
 
 import { useState } from "react";
-import type { Health } from "../types";
+import type { Health, ProviderName } from "../types";
 
 interface Props {
   health: Health | null;
+  /** null = follow the server's configured chain. */
+  override: ProviderName | null;
+  onSelect: (provider: ProviderName | null) => void;
   onRefresh: () => void;
 }
 
-export function StatusBar({ health, onRefresh }: Props) {
+export function StatusBar({ health, override, onSelect, onRefresh }: Props) {
   const [open, setOpen] = useState(false);
 
   if (!health) {
@@ -28,6 +38,10 @@ export function StatusBar({ health, onRefresh }: Props) {
   }
 
   const active = health.providers.find((p) => p.active);
+  const shown = override
+    ? health.providers.find((p) => p.name === override)
+    : active;
+
   const label =
     health.status === "ok"
       ? "All systems ready"
@@ -41,12 +55,13 @@ export function StatusBar({ health, onRefresh }: Props) {
         className={`status status--${health.status}`}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        aria-label={`System status: ${label}. Show details.`}
+        aria-label={`System status: ${label}. Model: ${shown?.name ?? "auto"}. Open to change.`}
       >
         <span className="status__dot" aria-hidden="true" />
         <span className="status__provider">
-          {active ? `${active.name} · ${active.model}` : health.active_provider}
+          {shown ? `${shown.name} · ${shown.model}` : health.active_provider}
         </span>
+        {override && <span className="status__pinned">pinned</span>}
         <span className="status__caret" aria-hidden="true">
           ▾
         </span>
@@ -69,6 +84,60 @@ export function StatusBar({ health, onRefresh }: Props) {
             </ul>
           )}
 
+          <h4 className="status__heading">Model</h4>
+          <div className="status__models" role="radiogroup" aria-label="Model provider">
+            <button
+              role="radio"
+              aria-checked={override === null}
+              className={`model-option ${override === null ? "is-active" : ""}`}
+              onClick={() => onSelect(null)}
+            >
+              <span className="model-option__name">Auto</span>
+              <span className="model-option__detail">
+                Follow the configured chain: {health.fallback_chain.join(" → ")}
+              </span>
+            </button>
+
+            {health.providers.map((provider) => {
+              const selectable = provider.configured && provider.reachable;
+              const selected = override === provider.name;
+              return (
+                <button
+                  key={provider.name}
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={!selectable}
+                  title={
+                    selectable
+                      ? `Send the next message to ${provider.name}`
+                      : provider.detail || "Not available"
+                  }
+                  className={`model-option ${selected ? "is-active" : ""} ${
+                    selectable ? "" : "is-disabled"
+                  }`}
+                  onClick={() => selectable && onSelect(provider.name as ProviderName)}
+                >
+                  <span className="model-option__name">
+                    {provider.name}
+                    {provider.active && <em> · default</em>}
+                  </span>
+                  <span className="model-option__detail">{provider.model}</span>
+                  {!selectable && provider.detail && (
+                    <span className="model-option__why">{provider.detail}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {override && (
+            <p className="status__line status__line--muted">
+              Pinned to <strong>{override}</strong>. A pinned provider bypasses the
+              fallback chain, so you see its own errors rather than a silent
+              substitution.
+            </p>
+          )}
+
           <h4 className="status__heading">Knowledge base</h4>
           <p className="status__line">
             {health.corpus.documents} sources ({health.corpus.podcasts} episodes,{" "}
@@ -78,40 +147,6 @@ export function StatusBar({ health, onRefresh }: Props) {
               : "lexical search only"}
           </p>
 
-          <h4 className="status__heading">Model providers</h4>
-          <ul className="status__providers">
-            {health.providers.map((provider) => (
-              <li key={provider.name} className="status__provider-row">
-                <span
-                  className={`pill ${
-                    provider.reachable
-                      ? "pill--ok"
-                      : provider.configured
-                        ? "pill--warn"
-                        : "pill--off"
-                  }`}
-                >
-                  {provider.reachable
-                    ? "ready"
-                    : provider.configured
-                      ? "unreachable"
-                      : "no key"}
-                </span>
-                <span className="status__provider-name">
-                  {provider.name}
-                  {provider.active && <em> (active)</em>}
-                </span>
-                <span className="status__provider-model">{provider.model}</span>
-                {provider.detail && (
-                  <span className="status__detail">{provider.detail}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-
-          <p className="status__line status__line--muted">
-            Fallback order: {health.fallback_chain.join(" → ")}
-          </p>
           <p className="status__line status__line--muted">
             Database: {health.database ? "connected" : "unreachable"} · v
             {health.version}

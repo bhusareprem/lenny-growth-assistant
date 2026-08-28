@@ -103,7 +103,7 @@ class OpenAICompatProvider(BaseProvider):
                 f"{self.name} rejected the request as too large (413). This is "
                 "usually a free-tier tokens-per-minute cap rather than a bug. "
                 "Lower RETRIEVAL_TOP_K to shrink the context, or use a provider "
-                f"with a higher limit. Provider said: {response.text[:200]}",
+                f"with a higher limit. Provider said: {response.text[:400]}",
                 provider=self.name,
             )
         if response.status_code >= 400:

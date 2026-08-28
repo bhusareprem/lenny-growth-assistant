@@ -249,6 +249,29 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .status__provider-name { font-weight: 550; }
 .status__provider-model, .status__detail { grid-column: 2; color: var(--text-faint); font-size: 11.5px; }
 
+.status__pinned {
+  padding: 1px 6px; border-radius: 999px;
+  background: var(--accent); color: var(--accent-text);
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+
+.status__models { display: grid; gap: 4px; margin-bottom: 4px; }
+
+.model-option {
+  display: grid; gap: 1px;
+  padding: 7px 10px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); text-align: left;
+}
+.model-option:hover:not(.is-disabled) { border-color: var(--accent); }
+.model-option.is-active { border-color: var(--accent); background: var(--accent-soft); }
+.model-option.is-disabled { opacity: 0.55; cursor: not-allowed; }
+
+.model-option__name { font-size: 12.5px; font-weight: 600; }
+.model-option__name em { font-style: normal; font-weight: 400; color: var(--text-faint); }
+.model-option__detail { font-size: 11px; color: var(--text-muted); }
+.model-option__why { font-size: 10.5px; color: var(--warn); }
+
 .pill {
   padding: 2px 7px; border-radius: 999px;
   font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;

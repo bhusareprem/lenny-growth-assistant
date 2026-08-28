@@ -4523,3 +4523,250 @@ That deserves a specific error rather than a generic one. Let me fix that and co
 - `Bash: Verify, re-export transcript, and push`
 
 </details>
+
+
+### Assistant (turn 488)
+
+I owe you a correction, and then two things you should act on.
+
+## I was wrong about your keys
+
+**The Groq keys were never revoked.** I said they were, and that was a bad diagnosis that changed your decisions — you went and found a new key on my say-so.
+
+`403 / error 1010` is a Cloudflare **client-fingerprint block**, not an auth failure. A bad key returns `401` with a JSON body. My probe script used `urllib`, whose `Python-urllib/3.12` User-Agent Groq's edge rejects. The app uses `httpx` and was never blocked. Retested: **200 OK, 14 models.**
+
+The real problems were mundane:
+- The key was in `.env` as **`New_Key_groq`** — a name nothing reads
+- `GROQ_MODEL` was `llama-3.3-70b-versatile`, which Groq **decommissioned**. Now `openai/gpt-oss-120b`
+
+My mistake was reading the status class instead of the specific error code. It's recorded in `agent-transcripts/README.md` as a wrong diagnosis of my own, since that's more useful to an evaluator than a silent patch.
+
+## Three providers now verified
+
+```
+* ollama     ready   llama3.2
+  groq       ready   openai/gpt-oss-120b
+  gemini     ready   gemini-2.5-flash
+```
+
+Chain: `ollama,groq,gemini`. Demo default stays Ollama.
+
+## One real constraint found
+
+Groq's free tier caps at **8,000 tokens/minute**, and one grounded turn costs **~10,081** (8 passages + prompt). So Groq will 413 intermittently on this workload.
+
+I added specific handling — it now names the cause and the lever (`lower RETRIEVAL_TOP_K to ~5`) instead of a generic "unavailable" that sends you hunting for a network fault. The fallback chain covers it either way.
+
+## Two things for you
+
+**1. Rotate that Groq key.** You pasted it in plaintext here. I've verified the committed transcript redacts it (`0 occurrences`), and `.env` is gitignored — but it's been through a chat log, so treat it as compromised. Revoking and reissuing at `console.groq.com` takes a minute.
+
+**2. Please click around the UI yourself.** The "hi" bug only surfaced because you pasted a real transcript. My automated QA asks well-formed questions and never types "hi" — so it can't find that class of problem.
+
+Current state: **166 tests, QA smoke 64/64**, everything pushed.
+
+
+### User (turn 489)
+
+also i cant change models manually i can see models are ready but i cant click to choose them
+
+
+### Assistant (turn 490)
+
+Fair — the panel shows status but there's no way to *pick*. The backend already accepts a per-request `provider` override; the UI just never sends it. Let me wire that up.
+
+
+### Assistant (turn 491)
+
+<details><summary>Tool calls</summary>
+
+- `Write: C:/Users/<user>\Downloads\lenny-growth-assistant\frontend\src\components\StatusBar.tsx`
+
+</details>
+
+
+### Assistant (turn 492)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Wire the provider switch into App and styles`
+
+</details>
+
+
+### Assistant (turn 493)
+
+Builds clean. Let me verify it actually works in the browser.
+
+
+### Assistant (turn 494)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Rebuild and restart with the new UI`
+
+</details>
+
+
+### Assistant (turn 495)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__navigate: http://localhost:8000`
+
+</details>
+
+
+### Assistant (turn 496)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__preview_start: http://localhost:8000`
+
+</details>
+
+
+### Assistant (turn 497)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__javascript_tool`
+
+</details>
+
+
+### Assistant (turn 498)
+
+Picker renders correctly — selectable providers live, unavailable ones disabled *with the reason*. Now let me verify a selection actually changes which model answers.
+
+
+### Assistant (turn 499)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__javascript_tool`
+
+</details>
+
+
+### Assistant (turn 500)
+
+My selector was wrong, not the code — the "Auto" row's text contains *"ollama → groq → gemini"*, so `includes('gemini')` matched Auto first. Retesting by name.
+
+
+### Assistant (turn 501)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__javascript_tool`
+
+</details>
+
+
+### Assistant (turn 502)
+
+Selection works — pill switches to `gemini · gemini-2.5-flash`, "pinned" badge appears, exclusive selection is correct. Now the real proof: does a message actually go to Gemini?
+
+
+### Assistant (turn 503)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__javascript_tool`
+
+</details>
+
+
+### Assistant (turn 504)
+
+The request carries `"provider":"gemini"`. Let me confirm the answer actually came back from Gemini.
+
+
+### Assistant (turn 505)
+
+<details><summary>Tool calls</summary>
+
+- `mcp__Claude_Browser__javascript_tool`
+
+</details>
+
+
+### Assistant (turn 506)
+
+Gemini's quota is exhausted (from my essay measurements). The error card rendered correctly — but the message says *"Every provider in LLM_FALLBACK_CHAIN failed"*, which is **wrong when you've pinned one**. Let me confirm the cause and fix that wording.
+
+
+### Assistant (turn 507)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Fix misleading error when a provider is pinned`
+
+</details>
+
+
+### Assistant (turn 508)
+
+Confirmed: Gemini 429 (my quota). Let me add a test for the new message and verify a pinned provider works end to end with Groq.
+
+
+### Assistant (turn 509)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Test pinned provider end to end with Groq`
+
+</details>
+
+
+### Assistant (turn 510)
+
+The new error message works. Groq is still hitting the TPM cap — let me find a `top_k` that fits and check quality holds.
+
+
+### Assistant (turn 511)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Find a top_k that fits Groq free tier`
+
+</details>
+
+
+### Assistant (turn 512)
+
+Even `top_k=5` fails. Let me get the actual number instead of guessing.
+
+
+### Assistant (turn 513)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Get exact token numbers from Groq error`
+
+</details>
+
+
+### Assistant (turn 514)
+
+Chunks average 985 tokens, so `top_k=5` is ~5.5k — under 8000. The cap is **cumulative per minute**, not per request, so Groq's free tier allows roughly **one grounded question per minute**. That's a plan limit, not a code problem.
+
+Two small real fixes, then I'm done: my error truncation was hiding the useful numbers, and `top_k` needs restoring.
+
+
+### Assistant (turn 515)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Restore defaults, widen error text, run QA`
+
+</details>
+
+
+### Assistant (turn 516)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Export transcript and push the model picker`
+
+</details>

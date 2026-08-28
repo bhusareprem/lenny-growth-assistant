@@ -141,6 +141,13 @@ async def generate(
             log.info("provider.fallback_used", served_by=name, attempts=len(attempts))
         return response, attempts
 
+    if provider_override:
+        raise AllProvidersFailed(
+            f"The pinned provider '{provider_override}' could not serve this "
+            "request.",
+            attempts=attempts,
+            pinned=provider_override,
+        )
     raise AllProvidersFailed(
         "No configured model provider could serve this request.", attempts=attempts
     )

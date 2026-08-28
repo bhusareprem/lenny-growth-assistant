@@ -20,6 +20,7 @@ import type {
   EssayCritique,
   Health,
   Message,
+  ProviderName,
   Session,
   SkillName,
 } from "./types";
@@ -43,6 +44,8 @@ export default function App() {
   const [error, setError] = useState<ApiError | null>(null);
   const [mobilePane, setMobilePane] = useState<"chat" | "artifact">("chat");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // null = follow the server's configured fallback chain.
+  const [providerOverride, setProviderOverride] = useState<ProviderName | null>(null);
 
   const scrollAnchor = useRef<HTMLDivElement>(null);
 
@@ -158,7 +161,10 @@ export default function App() {
     setBusy(true);
 
     try {
-      const response = await api.sendMessage(sessionId, text, { skill });
+      const response = await api.sendMessage(sessionId, text, {
+        skill,
+        provider: providerOverride,
+      });
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== optimistic.id),
         response.user_message,
@@ -242,7 +248,12 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar__foot">
-          <StatusBar health={health} onRefresh={refreshHealth} />
+          <StatusBar
+            health={health}
+            override={providerOverride}
+            onSelect={setProviderOverride}
+            onRefresh={refreshHealth}
+          />
         </div>
       </aside>
 
