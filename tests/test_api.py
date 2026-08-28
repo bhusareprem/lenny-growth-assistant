@@ -263,6 +263,30 @@ async def test_out_of_corpus_question_is_refused_without_calling_a_model(
     assert "could not find" in body["assistant_message"]["content"].lower()
 
 
+async def test_greeting_is_answered_without_retrieval_or_a_model(
+    client: AsyncClient,
+) -> None:
+    """A greeting must not be routed through RAG.
+
+    Before this was fixed, "hi" scored 1.0 coverage and the assistant replied
+    with a list of unrelated transcript quotes.
+    """
+    session_id = (await client.post("/api/sessions", json={})).json()["id"]
+
+    body = (
+        await client.post(f"/api/sessions/{session_id}/messages", json={"message": "hi"})
+    ).json()
+
+    assert body["route"]["skill"] == "smalltalk"
+    assert body["retrieved_chunks"] == 0
+    assert body["retrieval_strategy"] == "skipped"
+    assert body["assistant_message"]["provider"] == "none"
+    assert body["assistant_message"]["citations"] == []
+    content = body["assistant_message"]["content"]
+    assert "Lenny Growth Assistant" in content
+    assert "Ship 30" in content
+
+
 async def test_forced_skill_overrides_the_router(client: AsyncClient) -> None:
     session_id = (await client.post("/api/sessions", json={})).json()["id"]
 

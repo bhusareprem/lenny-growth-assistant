@@ -1,7 +1,7 @@
 /** Mirrors app/api/schemas.py. Kept hand-written and small so the contract is
  *  readable in one screen; if it grows, generate it from the OpenAPI schema. */
 
-export type SkillName = "qa" | "ship30_essay" | "artifact";
+export type SkillName = "qa" | "ship30_essay" | "artifact" | "smalltalk";
 export type ProviderName =
   | "ollama"
   | "groq"

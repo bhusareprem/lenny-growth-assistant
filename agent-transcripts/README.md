@@ -15,7 +15,7 @@ Only this project's session was exported. The machine held ~58 MB of transcripts
 
 ## The failures, in order
 
-Eleven problems worth recording. Eight were real defects, two were caught by tests rather than by using the app, and one was a test that was wrong about the code.
+Twelve problems worth recording. Nine were real defects, two were caught by tests rather than by using the app, and one was a test that was wrong about the code.
 
 ### 1. The relevance gate was in a place where it could never work
 
@@ -208,7 +208,47 @@ and PRD rather than tuned until one lucky run looked good.
 
 ---
 
-### 11. An accessibility bug found by reading the accessibility tree
+### 11. "hi" produced a wall of unrelated transcript quotes
+
+**Symptom.** Typing `hi` returned a dozen bullet-pointed quotes about
+rescheduling meetings and remembering names. `whoa are you ?` returned another
+set, equally unrelated.
+
+**Two causes, compounding.**
+
+1. The coverage gate is a *ratio*, so a one-word message whose single term
+   exists in the corpus scores a perfect **1.0**. `hi` sails through.
+2. The follow-up rewriter saw a short message, assumed it was a follow-up, and
+   prepended the previous question - so `whoa are you ?` (which on its own
+   scores 0.0 and would have been refused) inherited `hi` and passed.
+
+**The fix is not a better threshold, and the numbers prove it.** IDF mass was
+the obvious next candidate, and it does not separate them either:
+
+| Message | Content terms | IDF mass |
+|---|---|---|
+| `hello there` | 1 | 6.85 |
+| `hi` | 1 | 5.12 |
+| `PMF` | 1 | 5.76 |
+| `product market fit` | 3 | 4.54 |
+
+`hello there` carries more information-weight than `product market fit`. No
+relevance threshold can separate these, because a greeting is not a
+low-relevance question - it is a **different kind of message**.
+
+**Fix.** A `SMALLTALK` intent, matched by anchored patterns *before* retrieval
+runs. It returns a deterministic reply explaining the assistant's scope and
+offering three starter questions, with no search and no model call - 0.02s
+instead of 10s. The anchoring is the whole trick: `what can you do?` is
+smalltalk, `what can you do about churn?` is a question, and the trailing `$`
+is all that separates them. 23 routing cases cover both directions.
+
+**Bonus:** the previous behaviour for a first-time user typing "hi" was
+actively misleading. The new one is the best onboarding surface in the product.
+
+---
+
+### 12. An accessibility bug found by reading the accessibility tree
 
 The session list rendered as `button [ref_7]` with **no accessible name**, because the row was a `<button>` containing a `role="button"` span for delete. Nested interactive controls are invalid HTML and break name computation.
 

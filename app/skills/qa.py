@@ -52,6 +52,23 @@ company building. A few things that usually help:
 I would rather tell you the corpus is silent than invent an answer that sounds right."""
 
 
+SMALLTALK_TEMPLATE = """I'm the Lenny Growth Assistant. I answer product and growth questions using **only** transcripts from Lenny's Podcast and Lenny's Newsletter - {doc_count} sources, {chunk_count} indexed passages - and every answer cites the episode and timestamp it came from.
+
+Three things I can do:
+
+- **Answer a question**, grounded and cited. If the transcripts don't cover it, I say so rather than guessing.
+- **Write a Ship 30 for 30 essay** of about 1,250 words from that material.
+- **Build an artifact** - a Markdown or HTML document that renders beside this chat.
+
+A good place to start:
+
+- How do you know when you have product/market fit?
+- What separates a great PM from a good one?
+- Write a Ship 30 essay on how AI is changing product teams
+
+One thing worth knowing: I only know what's in these transcripts. Ask me something outside them and I'll tell you I can't help, which is the point."""
+
+
 def build_user_prompt(question: str, context: str) -> str:
     """Assemble the retrieval context and the question into one user turn."""
     return f"""EXCERPTS FROM THE KNOWLEDGE BASE

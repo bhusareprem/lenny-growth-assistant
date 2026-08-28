@@ -39,6 +39,9 @@ class Skill(str, Enum):
     QA = "qa"
     SHIP30_ESSAY = "ship30_essay"
     ARTIFACT = "artifact"
+    # "hi", "who are you", "thanks". Not a question about the corpus, so it
+    # never reaches retrieval or a model - see router.SMALLTALK_PATTERNS.
+    SMALLTALK = "smalltalk"
 
 
 @dataclass(slots=True)

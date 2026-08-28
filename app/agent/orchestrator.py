@@ -34,7 +34,7 @@ from app.agent.router import route
 from app.agent.types import ChatMessage, RouteDecision, Role, Skill
 from app.core.config import settings
 from app.core.logging import get_logger, timed
-from app.db.models import Document
+from app.db.models import Chunk, Document
 from app.rag.retriever import RetrievalResult, retriever
 from app.skills import artifact as artifact_skill
 from app.skills import qa as qa_skill
@@ -112,6 +112,13 @@ async def run_turn(
     """Execute one user turn end to end."""
     started = time.perf_counter()
     decision = route(message, forced_skill)
+
+    # Conversational messages never reach retrieval or a model. Routing them
+    # by relevance is impossible - "hi" scores a perfect 1.0 coverage because
+    # its one term exists in the corpus - so they are separated by intent
+    # instead, before any search happens.
+    if decision.skill is Skill.SMALLTALK:
+        return await _smalltalk_turn(session, decision, started)
 
     search_query = build_search_query(message, history)
     with timed(log, "turn.retrieve", skill=decision.skill.value) as fields:
@@ -414,6 +421,36 @@ def _cited_sources(
         payload["marker"] = index
         cited.append(payload)
     return cited, True
+
+
+async def _smalltalk_turn(
+    session: AsyncSession, decision: RouteDecision, started: float
+) -> TurnResult:
+    """Answer a greeting or a "what are you" without spending anything.
+
+    Returns instantly and explains the assistant's actual scope, which is the
+    most useful thing a first-time user can be told.
+    """
+    doc_count = (
+        await session.execute(select(func.count()).select_from(Document))
+    ).scalar_one()
+    chunk_count = (
+        await session.execute(select(func.count()).select_from(Chunk))
+    ).scalar_one()
+    log.info("turn.smalltalk", documents=doc_count)
+    return TurnResult(
+        answer=qa_skill.SMALLTALK_TEMPLATE.format(
+            doc_count=doc_count, chunk_count=f"{chunk_count:,}"
+        ),
+        route=decision,
+        retrieval=RetrievalResult(chunks=[], strategy="skipped", lexical_hits=0, dense_hits=0),
+        provider="none",
+        model="none",
+        latency_ms=round((time.perf_counter() - started) * 1000, 2),
+        usage={"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+        attempts=[],
+        grounded=True,
+    )
 
 
 async def _no_evidence_turn(

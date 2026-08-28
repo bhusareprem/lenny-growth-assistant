@@ -21,6 +21,7 @@ const SKILL_LABEL: Record<string, string> = {
   qa: "Grounded answer",
   ship30_essay: "Ship 30 essay",
   artifact: "Artifact",
+  smalltalk: "About this assistant",
 };
 
 export function MessageBubble({ message, critique, onOpenArtifact }: Props) {

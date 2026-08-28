@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-SkillName = Literal["qa", "ship30_essay", "artifact"]
+SkillName = Literal["qa", "ship30_essay", "artifact", "smalltalk"]
 ProviderNameLiteral = Literal["ollama", "groq", "openai", "gemini", "anthropic"]
 
 

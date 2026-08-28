@@ -49,6 +49,39 @@ ARTIFACT_HINTS = re.compile(
     re.I,
 )
 
+# --- Conversational, not a corpus question ------------------------------
+# Anchored to the whole message on purpose. "What can you do?" is smalltalk;
+# "What can you do about churn?" is a real question, and the trailing `$`
+# is the only thing keeping those apart.
+_GREETING = (
+    r"(hi|hey+|hello+|yo|hiya|sup|howdy|greetings"
+    r"|good\s+(morning|afternoon|evening|day))"
+)
+_THANKS = (
+    r"(thanks|thank\s+you|thx|ty|cheers|nice|great|cool|awesome|perfect"
+    r"|ok|okay|got\s+it)"
+)
+_BYE = r"(bye|goodbye|see\s+you|later|good\s*night)"
+# Trailing filler a greeting may carry without becoming a question.
+_TAIL = r"[\s!.,?]*"
+
+SMALLTALK_PATTERNS: list[re.Pattern[str]] = [
+    # "hi", "hey!", "hello there", "good morning everyone"
+    re.compile(rf"^\s*{_GREETING}(\s+(there|everyone|team|all|folks))?{_TAIL}$", re.I),
+    re.compile(rf"^\s*{_THANKS}{_TAIL}$", re.I),
+    re.compile(rf"^\s*{_BYE}{_TAIL}$", re.I),
+    # Identity. The \w{{0,3}} tolerates the typos people actually make here
+    # ("whoa are you", "wht are you").
+    re.compile(rf"^\s*(who|what)\w{{0,3}}\s+(are|r)\s+(you|u){_TAIL}$", re.I),
+    re.compile(rf"^\s*(what|who)('s|\s+is)\s+this{_TAIL}$", re.I),
+    # Capability. Anchored: "what can you do?" is smalltalk, "what can you do
+    # about churn?" is a real question, and the $ is all that separates them.
+    re.compile(rf"^\s*(what|how)\s+(can|do)\s+(you|u)\s+(do|work|help){_TAIL}$", re.I),
+    re.compile(rf"^\s*help(\s+me)?{_TAIL}$", re.I),
+    re.compile(rf"^\s*what\s+(can|should)\s+i\s+ask{_TAIL}$", re.I),
+]
+
+
 # Questions that merely *mention* a document are still questions.
 QUESTION_LEAD = re.compile(r"^\s*(what|why|how|when|who|which|where|is|are|do|does|did|can|should|would)\b", re.I)
 
@@ -76,6 +109,18 @@ def route(message: str, forced_skill: str | None = None) -> RouteDecision:
     text = message.strip()
     if not text:
         return RouteDecision(Skill.QA, 1.0, "Empty message; defaulting to Q&A.")
+
+    # Check this first. A greeting is not a low-relevance question, it is a
+    # different kind of message, and the retrieval gate cannot tell them apart:
+    # "hi" scores 1.0 coverage because its single term happens to exist in the
+    # corpus, and its IDF mass (5.12) sits above "product market fit" (4.54).
+    # Measured - see agent-transcripts/README.md.
+    if any(p.match(text) for p in SMALLTALK_PATTERNS):
+        return RouteDecision(
+            Skill.SMALLTALK,
+            0.99,
+            "Conversational message; answering without searching the corpus.",
+        )
 
     essay_score = _best(text, ESSAY_PATTERNS)
     html_score = _best(text, HTML_PATTERNS)

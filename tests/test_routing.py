@@ -84,6 +84,43 @@ def test_unknown_forced_skill_falls_back_to_inference() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "message",
+    [
+        "hi", "Hey!", "hello there", "hellooo", "good morning",
+        "thanks", "thank you", "ok", "got it", "bye",
+        "who are you?", "whoa are you ?", "what are you", "what is this?",
+        "what can you do?", "help", "help me",
+    ],
+)
+def test_conversational_messages_never_reach_retrieval(message: str) -> None:
+    """Regression: "hi" produced a wall of unrelated transcript quotes.
+
+    The retrieval gate cannot catch this. Coverage is a *ratio*, so a one-word
+    message whose single term exists in the corpus scores a perfect 1.0, and
+    "hi" carries more IDF mass (5.12) than "product market fit" (4.54). It is
+    a different kind of message, so it is separated by intent instead.
+    """
+    assert route(message).skill is Skill.SMALLTALK
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "What can you do about churn?",
+        "help me write a launch plan",
+        "what are you supposed to measure in week one?",
+        "Who are the best PMs to learn from?",
+        "What is this metric measuring?",
+        "How do you know when you have product/market fit?",
+    ],
+)
+def test_real_questions_are_not_mistaken_for_smalltalk(message: str) -> None:
+    """The anchoring is the whole trick: "what can you do?" is smalltalk,
+    "what can you do about churn?" is a question."""
+    assert route(message).skill is not Skill.SMALLTALK
+
+
 def test_empty_message_is_safe() -> None:
     assert route("   ").skill is Skill.QA
 

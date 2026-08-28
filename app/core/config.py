@@ -73,7 +73,11 @@ class Settings(BaseSettings):
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
 
     anthropic_api_key: str = ""
-    anthropic_model: str = "claude-sonnet-4-5"
+    # Current model IDs. Cheapest to most capable for this workload:
+    #   claude-haiku-4-5  - fine for testing the integration
+    #   claude-sonnet-5   - balanced default
+    #   claude-opus-5     - most capable
+    anthropic_model: str = "claude-sonnet-5"
 
     # ---------- Retrieval ----------
     embeddings_enabled: bool = True

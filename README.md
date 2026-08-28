@@ -27,6 +27,7 @@ A grounded internal assistant over [Lenny's Podcast](https://www.lennyspodcast.c
 | **Grounded Q&A** | Any question, or the **Answer** button | Cited prose. Every `[n]` marker resolves to a real retrieved passage with episode, guest and timestamp |
 | **Ship 30 essay** | "write an essay…", or the **Essay** button | ~1,250 words with a hook, skimmable structure and a specific takeaway, validated against the encoded Ship 30 principles |
 | **Artifact** | "make an HTML one-pager…", or the **Artifact** button | A rendered Markdown or HTML document in a sandboxed viewer beside the chat |
+| **Conversational** | "hi", "who are you?", "thanks" | An instant reply explaining scope and suggesting starters. No search, no model call - a greeting is not a question, and routing it through RAG produced nonsense |
 
 Plus: independent multi-turn sessions persisted in PostgreSQL, four interchangeable model providers behind one environment variable, and a deep health endpoint that tells you exactly what is broken.
 
