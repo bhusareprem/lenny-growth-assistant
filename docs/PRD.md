@@ -66,7 +66,7 @@ The client brief was deliberately incomplete. These are the calls made, and what
 - Three-layer artifact isolation, with a UI panel showing what was blocked
 - Four interchangeable model providers behind one config switch, with a fallback chain
 - Docker Compose one-command startup, structured logging, deep health endpoint
-- 138 automated tests
+- 140 automated tests
 
 **Deliberately excluded, and why:**
 
@@ -85,7 +85,7 @@ The client brief was deliberately incomplete. These are the calls made, and what
 | Risk | Severity | Mitigation | Residual |
 |---|---|---|---|
 | **Hallucination** | High | Retrieval is mandatory and deterministic; coverage gate refuses out-of-corpus questions; citations resolved against actually-retrieved chunks; `citations_matched` flags unlabelled answers | A small model can still misattribute a quote *within* correct sources. Observed once in testing: llama3.2 attributed a passage to Gloria Mark that came from Tom Verrilli's episode. The citation pointed at the right chunk; the name was wrong. **Not fully solved.** |
-| **Local model quality** | High | Deterministic orchestration; format retry; essay validator with repair pass; provider switch is one env var | llama3.2 output is thin and occasionally mis-attributes. Groq or Anthropic fixes this immediately. The architecture is sound; the local model is the constraint. |
+| **Local model quality** | High | Deterministic orchestration; format retry; essay validator with repair pass; provider switch is one env var | **Measured, not estimated.** Three essay runs on llama3.2: 1,004 words / 5 sections / 5 citations / no bullets or bold, then 820 words / bullets and bold / no sections or citations. The model trades constraints off against each other and cannot hold all eight at once. It also occasionally mis-attributes a quote to the wrong speaker within correctly retrieved sources. The validator catches and reports each shortfall, so failures are visible rather than silent. Groq or Anthropic resolves it; the architecture is unchanged. |
 | **Latency** | Medium | `keep_alive` holds the model in memory; honest "this can take a while" copy; warm p50 ~11s | First turn after a cold start is ~67s. No streaming yet. |
 | **Unsafe artifact rendering** | High | Three independent layers: server-side allowlist sanitiser, `sandbox=""` iframe with zero tokens, `default-src 'none'` CSP. Verified empirically: parent cannot reach the frame document | Residual risk is a browser sandbox escape, which is outside this application's control |
 | **Data leakage** | Medium | Local-only path needs no API keys at all; `.env` gitignored; corpus not redistributed; DSNs redacted in logs | Cloud providers see prompt content by definition. The Ollama default exists precisely so that is opt-in. |
@@ -121,12 +121,12 @@ Same path until the gate. Every candidate falls below the coverage threshold →
 | AC4 | The assistant refuses when the corpus does not support an answer | Met, 13/14 on the labelled probe set |
 | AC5 | The provider is switchable without code changes | Met, `LLM_PROVIDER` alone; `test_switching_provider_needs_no_code_change` |
 | AC6 | The demo runs on Ollama | Met, llama3.2 + nomic-embed-text, verified end to end |
-| AC7 | Essays are ~1,250 words with hook, structure, skimmable formatting, takeaway | Met structurally and enforced by the validator; prose quality is model-bound |
+| AC7 | Essays are ~1,250 words with hook, structure, skimmable formatting, takeaway | **Partially met on the local model.** The principles are encoded as data, the validator measures all eight constraints, and one repair pass fires on failure. llama3.2 satisfies a subset per run (see the local-model row in §1.5) and the validator reports the rest to the user. Meeting the full spec every run needs a stronger provider. |
 | AC8 | Artifacts render in-app beside the chat | Met |
 | AC9 | Generated HTML is treated as untrusted | Met, three layers, empirically verified |
 | AC10 | One-command startup | Met, `docker compose up --build` |
 | AC11 | Graceful handling of missing keys, absent Ollama, timeouts, empty retrieval, DB failure | Met, each with its own test |
-| AC12 | Meaningful automated tests | Met, 138 passing |
+| AC12 | Meaningful automated tests | Met, 140 passing |
 
 ---
 
@@ -189,7 +189,7 @@ Each layer fails differently. The sanitiser is an allowlist, so an unknown tag f
 | 4 | FastAPI routes, error envelope | 500-instead-of-422 bug found |
 | 5 | React SPA, artifact viewer | Isolation verified in-browser |
 | 6 | Docker Compose, health, resilience | One-command startup |
-| 7 | 138 tests, lint | Three production bugs caught by tests |
+| 7 | 140 tests, lint | Three production bugs caught by tests |
 | 8 | Documentation and handoff | This document |
 
 ## 7. What I would do next, in priority order

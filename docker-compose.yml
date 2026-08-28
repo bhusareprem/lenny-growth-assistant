@@ -35,6 +35,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Explicit: the Dockerfile's last stage is `test`, and an unspecified
+      # target would silently build that instead of the runtime image.
+      target: runtime
     command: ["python", "scripts/ingest.py"]
     env_file:
       - .env
@@ -59,6 +62,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runtime          # see the note on `ingest` above
     env_file:
       - .env
     environment:

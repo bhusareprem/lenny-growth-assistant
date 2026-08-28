@@ -86,12 +86,14 @@ HEADLINE_ELEMENTS: tuple[str, ...] = (
 
 FORMATTING_RULES: tuple[str, ...] = (
     "Open the piece, and every section, with a single sentence.",
-    "If you are listing anything, ever, make it a bulleted list.",
+    "If you are listing anything, ever, make it a bulleted list, written as "
+    "markdown lines beginning with '- '.",
     "Use bolded subheads to signal where the reader is in the argument; "
     "split the piece into roughly equal chunks so each section is a milestone.",
     "Use the 1/3/1 rhythm (or 1/4/1, 1/5/1): open with one clear sentence, "
     "build over the next few, close the point with one sentence.",
-    "Bold only the line you would want a skimmer to read. Bolding everything "
+    "In every section, wrap the one sentence a skimmer must read in double "
+    "asterisks, like **this**. Bold nothing else - bolding everything "
     "bolds nothing.",
     "Keep paragraphs short and leave white space between them.",
 )
@@ -111,10 +113,18 @@ CARDINAL_RULE = (
 
 
 def principles_block() -> str:
-    """Render the encoded principles as the instruction block for the model."""
+    """Render the encoded principles as the instruction block for the model.
+
+    Note what is deliberately *absent*: `Opener.example`. Those examples are
+    real Ship 30 material and stay in the data as documentation, but injecting
+    them into the prompt made llama3.2 open an essay with "Being physically fit
+    isn't a hobby, it's a lifestyle" - copied verbatim. It is the same failure
+    as the `[n]` placeholder: anything concrete in the instructions is
+    something a small model reproduces rather than imitates. The rules teach
+    the six shapes without handing over a sentence to steal.
+    """
     openers = "\n".join(
-        f"  {i}. {o.name} - {o.rule} e.g. \"{o.example}\""
-        for i, o in enumerate(OPENERS, start=1)
+        f"  {i}. {o.name} - {o.rule}" for i, o in enumerate(OPENERS, start=1)
     )
     formatting = "\n".join(f"  - {rule}" for rule in FORMATTING_RULES)
     arc = "\n".join(f"  {i}. {step}" for i, step in enumerate(NARRATIVE_ARC, start=1))
@@ -135,7 +145,9 @@ FORMATTING:
 
 CARDINAL RULE: {CARDINAL_RULE}
 
-LENGTH: approximately {TARGET_WORDS} words (accept {WORD_FLOOR}-{WORD_CEILING})."""
+LENGTH: approximately {TARGET_WORDS} words total. With 4 body sections that is
+roughly 300 words each - write full paragraphs, not summaries. A section of two
+or three sentences is too short."""
 
 
 # --------------------------------------------------------------------------
@@ -206,10 +218,16 @@ def critique(text: str, *, require_citations: bool = True) -> Critique:
     words = word_count(text)
 
     if words < WORD_FLOOR:
+        sections = max(1, len(H2_RE.findall(text)))
+        needed = TARGET_WORDS - words
         failures.append(
-            f"Too short: {words} words. Expand to roughly {TARGET_WORDS} "
-            f"(minimum {WORD_FLOOR}) by developing the existing sections with "
-            "more specifics from the sources - do not add new claims."
+            f"Too short: {words} words, and it needs about {TARGET_WORDS}. "
+            f"Add roughly {needed} more words by expanding each of your "
+            f"{sections} sections to about {TARGET_WORDS // max(sections, 1)} "
+            "words. Go deeper on the excerpts you already cite - add the "
+            "specifics, the numbers and the named examples they contain. "
+            "Do not add claims the excerpts do not support, and do not add "
+            "new sections."
         )
     elif words > WORD_CEILING:
         failures.append(
@@ -228,14 +246,22 @@ def critique(text: str, *, require_citations: bool = True) -> Critique:
         )
 
     if not BULLET_RE.search(text):
+        # Showing the literal markdown works where the rule alone does not.
+        # Unlike a hook sentence, copying a *formatting* pattern is the desired
+        # outcome, so a concrete example is safe here - see principles_block().
         failures.append(
-            "No bulleted list. Ship 30 rule: if you are listing anything, "
-            "ever, it becomes a bulleted list."
+            "No bulleted list. Find a paragraph that enumerates things and "
+            "convert it to a markdown list, exactly this shape:\n"
+            "- First point\n- Second point\n- Third point"
         )
 
     bolds = len(BOLD_RE.findall(text))
     if bolds == 0:
-        failures.append("No bold emphasis. Bold the lines a skimmer must read.")
+        failures.append(
+            "No bold emphasis. In each section, wrap the one sentence a skimmer "
+            "must read in double asterisks, exactly this shape:\n"
+            "**This is the sentence that carries the section.**"
+        )
     elif bolds > 25:
         warnings.append(
             f"{bolds} bolded spans is too many - bolding everything bolds nothing."

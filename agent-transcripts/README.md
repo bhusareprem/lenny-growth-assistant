@@ -15,7 +15,7 @@ Only this project's session was exported. The machine held ~58 MB of transcripts
 
 ## The failures, in order
 
-Ten problems worth recording. Seven were real defects, two were caught by tests rather than by using the app, and one was a test that was wrong about the code.
+Eleven problems worth recording. Eight were real defects, two were caught by tests rather than by using the app, and one was a test that was wrong about the code.
 
 ### 1. The relevance gate was in a place where it could never work
 
@@ -168,7 +168,47 @@ Rather than change the query until the test passed, the limitation was made expl
 
 ---
 
-### 10. An accessibility bug found by reading the accessibility tree
+### 10. Ship 30 essays: the machinery works, the local model does not
+
+**Symptom.** An end-to-end essay run produced 552 words against a 1,250 target,
+no bullets, no bold - and opened with *"Being physically fit isn't a hobby, it's
+a lifestyle"*, which is one of the opener **examples** from the encoded
+principles, copied verbatim.
+
+**Two causes, one of them mine.** The example leakage is the `[n]` failure
+again: anything concrete in the instructions is something a small model
+reproduces rather than imitates. Fixed by dropping `Opener.example` from the
+rendered prompt - the examples stay in the data as sourced documentation, and
+the six opener *rules* still teach the shapes. A regression test asserts the
+examples never appear in the prompt.
+
+The length shortfall was partly mine too: a single global word count is easy
+for a small model to under-shoot. Replaced with arithmetic guidance (roughly
+300 words per section) and a repair brief that computes how many words are
+missing and across how many sections.
+
+**Measured result across three runs:**
+
+| Run | Words | Sections | Bullets | Bold | Citations |
+|---|---|---|---|---|---|
+| Before fixes | 552 | 5 | 0 | 0 | 4, plus a leaked example |
+| After length + leak fix | 1,004 | 5 | 0 | 0 | 5 |
+| After concrete formatting examples | 820 | 0 | 3 | 9 | 0 |
+
+**Where it stopped, and why.** Each fix worked in isolation, but llama3.2 trades
+the constraints off against each other: adding bullets and bold cost it section
+headings and citations. This is a 2 GB model against an eight-constraint spec,
+and further prompt tuning was showing negative returns.
+
+So the honest position: the *skill* is correct - principles encoded as data,
+every constraint measured, a targeted repair pass, and the critique surfaced to
+the user on every run. The *model* is the limitation, and the validator makes
+that visible rather than shipping a quiet shortfall. Documented in the README
+and PRD rather than tuned until one lucky run looked good.
+
+---
+
+### 11. An accessibility bug found by reading the accessibility tree
 
 The session list rendered as `button [ref_7]` with **no accessible name**, because the row was a `<button>` containing a `role="button"` span for delete. Nested interactive controls are invalid HTML and break name computation.
 

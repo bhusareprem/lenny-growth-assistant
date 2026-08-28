@@ -202,7 +202,7 @@ Or on the host, if you have Python:
 pip install -r requirements-dev.txt && python -m pytest -q
 ```
 
-**138 tests, ~2 seconds, no infrastructure required.** No Postgres, no Ollama, no API keys. Persistence and API tests run against in-memory SQLite; the model is stubbed so the tests assert contracts rather than model behaviour.
+**140 tests, ~2 seconds, no infrastructure required.** No Postgres, no Ollama, no API keys. Persistence and API tests run against in-memory SQLite; the model is stubbed so the tests assert contracts rather than model behaviour.
 
 | File | Covers |
 |---|---|
@@ -306,6 +306,7 @@ The transcripts are **not** in this repository, and must not be added to it. Len
 Stated plainly, because an evaluator will find them anyway.
 
 - **Small-model quality.** llama3.2 produces thin prose and occasionally misattributes a quote to the wrong speaker *within* correctly retrieved sources. The citation points at the right passage; the name can be wrong. A cloud provider fixes this immediately.
+- **Ship 30 essays do not reliably meet the full spec on llama3.2.** Measured across three runs, the model satisfies some constraints at the cost of others: 1,004 words with 5 sections and 5 citations but no bullets or bold; then 820 words with bullets and bold but no section headings and no citations. The skill's machinery is correct - the principles are encoded, the validator measures every constraint, and the repair pass fires - but a 2 GB model cannot hold eight simultaneous formatting and grounding constraints. **The validator reports exactly which ones failed on every run, and the UI shows it**, so a shortfall is visible rather than silently shipped. Switching to Groq or Anthropic is the fix; the architecture is unchanged.
 - **No streaming.** A 11 to 67 second wait with no token-by-token output. The reason it was cut, and the fix, are in [docs/PRD.md](docs/PRD.md#15-risks-and-trade-offs).
 - **BM25 does not stem**, so lexical-only mode misses inflections (`price` vs `Pricing`). Dense retrieval covers this in normal operation.
 - **14 of 60 corpus files carry no source URL** upstream. Those citations show the episode and timestamp without a link.

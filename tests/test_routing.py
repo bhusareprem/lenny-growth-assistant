@@ -131,6 +131,32 @@ def test_principles_block_contains_the_encoded_rules() -> None:
     assert str(ship30.TARGET_WORDS) in block
 
 
+def test_prompt_does_not_leak_the_opener_examples() -> None:
+    """Regression: llama3.2 opened an essay with "Being physically fit isn't a
+    hobby, it's a lifestyle" - an example from the encoded principles, copied
+    verbatim. Anything concrete in the instructions is something a small model
+    will reproduce rather than imitate, so the prompt carries rules only."""
+    block = ship30.principles_block()
+    for opener in ship30.OPENERS:
+        assert opener.example not in block, f"example leaked: {opener.example}"
+        assert opener.name in block, "the opener types must still be taught"
+
+
+def test_short_essay_repair_gives_arithmetic_targets() -> None:
+    """A small model under-shoots a global word count. The repair brief has to
+    say how many words, in how many sections."""
+    draft = (
+        "# T\n\nHook [1].\n\n"
+        "## A\n\nShort [1].\n\n"
+        "## B\n\nAlso short [2].\n\n"
+        "- x\n\n**b**\n"
+    )
+    critique = ship30.critique(draft)
+    instruction = critique.repair_instruction()
+    assert "more words" in instruction
+    assert "sections to about" in instruction
+
+
 def test_sources_are_recorded_so_the_encoding_is_auditable() -> None:
     assert len(ship30.SOURCES) >= 3
     assert all(s.startswith("https://www.ship30for30.com/") for s in ship30.SOURCES)
@@ -160,7 +186,7 @@ def test_short_essay_fails_with_an_actionable_message() -> None:
     assert not critique.passed
     assert any("Too short" in f for f in critique.failures)
     # The repair brief must name the defect, not just ask for "better".
-    assert "Expand" in critique.repair_instruction()
+    assert "expanding" in critique.repair_instruction()
 
 
 @pytest.mark.parametrize(
