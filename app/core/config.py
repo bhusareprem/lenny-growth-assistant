@@ -15,7 +15,7 @@ from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ProviderName = Literal["ollama", "groq", "openai", "anthropic"]
+ProviderName = Literal["ollama", "groq", "openai", "gemini", "anthropic"]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -41,6 +41,16 @@ class Settings(BaseSettings):
     llm_fallback_chain: str = "ollama"
     llm_timeout_seconds: float = 120.0
     llm_max_tokens: int = 4096
+    # How many times the Ship 30 skill may re-ask the model to fix a draft that
+    # failed validation. Each pass costs a full generation.
+    #
+    # Default is 1, and that is a measured choice rather than a guess: raising
+    # it to 2 dropped the full-spec pass rate from 2/5 to 0/5 on
+    # gemini-2.5-flash. Each repair rewrites the whole essay, so a second pass
+    # tends to lose constraints the first one had already satisfied. The
+    # strict-improvement guard in the orchestrator now blocks that, but more
+    # passes still buy latency rather than quality. 0 disables repair.
+    ship30_max_repairs: int = 1
     llm_temperature: float = 0.3
 
     # ---------- Providers ----------
@@ -54,6 +64,13 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_base_url: str = "https://api.openai.com/v1"
+
+    # Google exposes an OpenAI-compatible surface, so Gemini needs no new
+    # client code - only configuration. That is the provider abstraction
+    # paying for itself; see providers/openai_compat.py.
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
 
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-5"
@@ -99,7 +116,13 @@ class Settings(BaseSettings):
         seen: set[str] = set()
         ordered: list[ProviderName] = []
         for name in chain:
-            if name in seen or name not in ("ollama", "groq", "openai", "anthropic"):
+            if name in seen or name not in (
+                "ollama",
+                "groq",
+                "openai",
+                "gemini",
+                "anthropic",
+            ):
                 continue
             seen.add(name)
             ordered.append(name)  # type: ignore[arg-type]
@@ -111,6 +134,7 @@ class Settings(BaseSettings):
             "ollama": "n/a",
             "groq": self.groq_api_key,
             "openai": self.openai_api_key,
+            "gemini": self.gemini_api_key,
             "anthropic": self.anthropic_api_key,
         }[provider]
 
@@ -119,6 +143,7 @@ class Settings(BaseSettings):
             "ollama": self.ollama_model,
             "groq": self.groq_model,
             "openai": self.openai_model,
+            "gemini": self.gemini_model,
             "anthropic": self.anthropic_model,
         }[provider]
 

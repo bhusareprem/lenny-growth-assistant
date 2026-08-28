@@ -110,8 +110,10 @@ def qa_health() -> dict:
     )
     check("no outstanding checks", health["checks"] == [], str(health["checks"]))
     check(
-        "four providers reported",
-        {p["name"] for p in health["providers"]} == {"ollama", "groq", "openai", "anthropic"},
+        "all five providers reported",
+        {p["name"] for p in health["providers"]}
+        == {"ollama", "groq", "openai", "gemini", "anthropic"},
+        str(sorted(p["name"] for p in health["providers"])),
     )
     active = next(p for p in health["providers"] if p["active"])
     check("active provider reachable", active["reachable"] is True, active["detail"])

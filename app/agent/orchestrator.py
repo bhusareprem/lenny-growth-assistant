@@ -206,12 +206,19 @@ async def _run_essay(
     )
 
     critique = ship30.critique(response.text)
-    # One repair pass, and only one. A second costs another full generation for
-    # diminishing returns; the critique is returned to the UI either way, so a
-    # still-imperfect essay is visibly imperfect rather than silently so.
-    if not critique.passed:
+
+    # Iterate the repair rather than doing exactly one pass. Measured across
+    # topics, a single pass often trades one failure for another - a draft gets
+    # its bullets but loses length, or hits the word count and drops a heading.
+    # The briefs are arithmetic and specific, so repeating them converges;
+    # `SHIP30_MAX_REPAIRS` bounds the cost, since each pass is a full
+    # generation. We only ever keep a revision that is strictly better.
+    for attempt in range(settings.ship30_max_repairs):
+        if critique.passed:
+            break
         log.info(
             "ship30.repair",
+            pass_number=attempt + 1,
             failures=critique.failures,
             word_count=critique.word_count,
         )
@@ -227,14 +234,32 @@ async def _run_essay(
                 max_tokens=max(settings.llm_max_tokens, 4096),
                 provider_override=provider_override,
             )
-        except Exception as exc:  # noqa: BLE001 - keep the usable first draft
+        except Exception as exc:  # noqa: BLE001 - keep the usable draft we have
             log.warning("ship30.repair_failed", error=str(exc)[:300])
+            break
+
+        revised_critique = ship30.critique(revised.text)
+        attempts += repair_attempts
+
+        # Accept a net improvement, measured by defect count.
+        #
+        # A strict-subset rule (fix something, break nothing) was tried and
+        # scored worse: it rejects a revision that fixes the word count but
+        # happens to drop one bullet, so most repairs never land. Net-better is
+        # the rule that actually converges. Codes are still recorded so a
+        # rejection is legible in the logs.
+        before, after = set(critique.codes), set(revised_critique.codes)
+        if len(revised_critique.failures) < len(critique.failures):
+            response, critique = revised, revised_critique
         else:
-            revised_critique = ship30.critique(revised.text)
-            # Only accept the revision if it is actually better.
-            if len(revised_critique.failures) < len(critique.failures):
-                response, critique = revised, revised_critique
-                attempts += repair_attempts
+            log.info(
+                "ship30.repair_rejected",
+                pass_number=attempt + 1,
+                before=sorted(before),
+                after=sorted(after),
+                introduced=sorted(after - before),
+            )
+            break
 
     result = _base_result(response, attempts, decision, retrieval)
     result.essay_critique = critique.to_dict()

@@ -19,7 +19,11 @@ from typing import Any, Callable
 from app.agent.providers.anthropic_agent import anthropic_provider
 from app.agent.providers.base import BaseProvider
 from app.agent.providers.ollama_provider import ollama_provider
-from app.agent.providers.openai_compat import groq_provider, openai_provider
+from app.agent.providers.openai_compat import (
+    gemini_provider,
+    groq_provider,
+    openai_provider,
+)
 from app.agent.types import ChatMessage, ProviderHealth, ProviderResponse
 from app.core.config import ProviderName, settings
 from app.core.errors import (
@@ -37,6 +41,7 @@ _FACTORIES: dict[str, Callable[[], BaseProvider]] = {
     "ollama": ollama_provider,
     "groq": groq_provider,
     "openai": openai_provider,
+    "gemini": gemini_provider,
     "anthropic": anthropic_provider,
 }
 

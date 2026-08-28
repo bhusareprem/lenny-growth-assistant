@@ -121,7 +121,7 @@ Same path until the gate. Every candidate falls below the coverage threshold →
 | AC4 | The assistant refuses when the corpus does not support an answer | Met, 13/14 on the labelled probe set |
 | AC5 | The provider is switchable without code changes | Met, `LLM_PROVIDER` alone; `test_switching_provider_needs_no_code_change` |
 | AC6 | The demo runs on Ollama | Met, llama3.2 + nomic-embed-text, verified end to end |
-| AC7 | Essays are ~1,250 words with hook, structure, skimmable formatting, takeaway | **Partially met on the local model.** The principles are encoded as data, the validator measures all eight constraints, and one repair pass fires on failure. llama3.2 satisfies a subset per run (see the local-model row in §1.5) and the validator reports the rest to the user. Meeting the full spec every run needs a stronger provider. |
+| AC7 | Essays are ~1,250 words with hook, structure, skimmable formatting, takeaway | **Partially met, model-bound.** `gemini-2.5-flash`: 2/4 runs meet the full spec, with structure and citations present on every run. `llama3.2`: 0/3. Two tuning attempts were measured and reverted (see architecture.md). The principles are encoded as data, the validator measures all eight constraints, and one repair pass fires on failure. llama3.2 satisfies a subset per run (see the local-model row in §1.5) and the validator reports the rest to the user. Meeting the full spec every run needs a stronger provider. |
 | AC8 | Artifacts render in-app beside the chat | Met |
 | AC9 | Generated HTML is treated as untrusted | Met, three layers, empirically verified |
 | AC10 | One-command startup | Met, `docker compose up --build` |

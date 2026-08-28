@@ -22,9 +22,9 @@ How the system is put together, what each boundary is for, and where to change t
 │        ├── rag/retriever.py        BM25 + pgvector, RRF fusion        │
 │        ├── skills/{qa,ship30,artifact}.py   prompts + validators      │
 │        └── agent/registry.py       provider selection + fallback      │
-│                 ├── ollama_provider.py    (local, demo default)       │
-│                 ├── openai_compat.py      (groq, openai)              │
-│                 └── anthropic_agent.py    (Claude Agent SDK)          │
+│                 ├── ollama_provider.py  (local, demo default)         │
+│                 ├── openai_compat.py    (groq, openai, gemini)        │
+│                 └── anthropic_agent.py  (Claude Agent SDK)            │
 │                                                                       │
 │   db/  SQLAlchemy 2.0 async                                           │
 └───────────┬───────────────────────────────────┬───────────────────────┘
@@ -34,8 +34,10 @@ How the system is put together, what each boundary is for, and where to change t
 │  + pgvector             │        │  llama3.2                 │
 │  sessions, messages,    │        │  nomic-embed-text         │
 │  artifacts, documents,  │        └───────────────────────────┘
-│  chunks(vector 768)     │
-└─────────────────────────┘
+│  chunks(vector 768)     │        ┌───────────────────────────┐
+└─────────────────────────┘        │  Gemini / Groq / OpenAI / │
+                                   │  Anthropic  (cloud)       │
+                                   └───────────────────────────┘
 ```
 
 Ollama runs on the **host**, not in a container: it is the user's local model runtime and often has GPU access a container would not. Containers reach it through `host.docker.internal`.
@@ -250,6 +252,8 @@ message ─→ router.route(message, forced_skill)
 | `ship30_essay` | ~1,250 word Markdown essay | `ship30.critique()`, one repair pass on failure |
 | `artifact` | Markdown or HTML document | Extraction, sanitiser, one strict retry if the format was ignored |
 
+**Measured essay behaviour.** Five topics per configuration, `SHIP30_MAX_REPAIRS=1`: `gemini-2.5-flash` met the full spec on 2 of 4 runs (1,125-1,828 words, with sections, bullets, bold and 5-6 resolving citations on *every* run); `llama3.2` met it on 0 of 3 (552-1,004 words, trading constraints against each other). Two attempts to close the gap were measured and reverted - an explicit upper word bound in the prompt cut output to ~700 words, and a second repair pass scored 0/5 because each rewrite loses constraints the previous one satisfied. The validator reports the shortfall on every run, so it is visible rather than silent.
+
 **The Ship 30 skill encodes its principles as data**, not prose in a prompt: the six single-sentence openers, the five headline elements, the formatting rules, the 1/3/1 rhythm, all sourced from the published material (URLs in `SOURCES`). They are used twice: composed deterministically into the prompt, and used by `critique()` to measure the result. A prompt can only ask; a validator can tell you whether you got it. When a draft fails, the repair instruction names the specific defects rather than saying "make it better", and the critique is returned to the UI either way, so a still-imperfect essay is visibly imperfect.
 
 ---
@@ -263,6 +267,7 @@ Switching provider is one environment variable. `app/core/config.py` is the only
 | `ollama` | `/api/chat` | Demo default. Keyless. Reports real token counts |
 | `groq` | OpenAI-compatible | Same class as OpenAI, different base URL |
 | `openai` | OpenAI-compatible | |
+| `gemini` | OpenAI-compatible | Google's `/v1beta/openai` endpoint. **Verified end to end.** A thinking model: reasoning tokens share the answer's budget, so keep `LLM_MAX_TOKENS` >= 4096 |
 | `anthropic` | **Claude Agent SDK** `query()` | All built-in tools denied, `setting_sources=[]` |
 
 `LLM_FALLBACK_CHAIN` lists who to try next. The chain advances on **infrastructure** failures: unreachable, timed out, rate limited, missing or rejected key, and empty completion (a real failure mode on small local models). It does **not** advance on a successful call whose answer we dislike, and it does **not** swallow genuine bugs: a `TypeError` propagates rather than being retried, because silently falling through would turn a defect into a latency problem and hide it.

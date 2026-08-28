@@ -122,6 +122,7 @@ async def test_health_reports_corpus_and_providers(client: AsyncClient) -> None:
         "ollama",
         "groq",
         "openai",
+        "gemini",
         "anthropic",
     }
     assert body["status"] in {"ok", "degraded", "down"}

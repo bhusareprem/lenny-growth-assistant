@@ -19,7 +19,7 @@ rather than a vibe.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 SOURCES = [
     "https://www.ship30for30.com/post/how-to-write-an-atomic-essay-a-beginners-guide",
@@ -147,7 +147,14 @@ CARDINAL RULE: {CARDINAL_RULE}
 
 LENGTH: approximately {TARGET_WORDS} words total. With 4 body sections that is
 roughly 300 words each - write full paragraphs, not summaries. A section of two
-or three sentences is too short."""
+or three sentences is too short.
+
+Measured note for maintainers, not the model: adding an explicit upper bound
+here ("never more than N words", "a section over 400 words is too long")
+backfired badly - it cut typical output from ~1,400 words to ~700 and took the
+citations with it. Models optimise hard against the most specific recent
+constraint. The ceiling is enforced by the validator after the fact instead,
+where it costs nothing if it never fires."""
 
 
 # --------------------------------------------------------------------------
@@ -169,6 +176,10 @@ class Critique:
     word_count: int
     failures: list[str]
     warnings: list[str]
+    # Stable identifiers for the failures, in the same order. Comparing codes
+    # rather than counts is what lets the orchestrator tell "this revision is
+    # better" from "this revision traded one defect for another".
+    codes: list[str] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
@@ -215,11 +226,13 @@ def critique(text: str, *, require_citations: bool = True) -> Critique:
     """Measure a draft. `failures` block acceptance; `warnings` are advisory."""
     failures: list[str] = []
     warnings: list[str] = []
+    codes: list[str] = []
     words = word_count(text)
 
     if words < WORD_FLOOR:
         sections = max(1, len(H2_RE.findall(text)))
         needed = TARGET_WORDS - words
+        codes.append("length_short")
         failures.append(
             f"Too short: {words} words, and it needs about {TARGET_WORDS}. "
             f"Add roughly {needed} more words by expanding each of your "
@@ -230,16 +243,26 @@ def critique(text: str, *, require_citations: bool = True) -> Critique:
             "new sections."
         )
     elif words > WORD_CEILING:
+        # Arithmetic, like the too-short case. "Tighten it" is not a brief a
+        # model can execute; "remove 480 words" is. Capable models overshoot as
+        # readily as small ones undershoot.
+        excess = words - TARGET_WORDS
+        codes.append("length_long")
         failures.append(
-            f"Too long: {words} words. Cut to roughly {TARGET_WORDS} "
-            f"(maximum {WORD_CEILING}) by tightening prose, not by deleting sections."
+            f"Too long: {words} words, and it needs about {TARGET_WORDS}. "
+            f"Remove roughly {excess} words. Tighten sentence by sentence and "
+            "cut repetition and throat-clearing. Keep every section, every "
+            "bullet and every citation - the length must come out of the prose, "
+            "not the structure."
         )
 
     if not H1_RE.search(text):
+        codes.append("no_h1")
         failures.append("No H1 title. Start with a single '# Headline' line.")
 
     headings = len(H2_RE.findall(text))
     if headings < 3:
+        codes.append("few_sections")
         failures.append(
             f"Only {headings} section headings. Use at least 3 '## Subhead' "
             "sections so the piece is skimmable."
@@ -249,6 +272,7 @@ def critique(text: str, *, require_citations: bool = True) -> Critique:
         # Showing the literal markdown works where the rule alone does not.
         # Unlike a hook sentence, copying a *formatting* pattern is the desired
         # outcome, so a concrete example is safe here - see principles_block().
+        codes.append("no_bullets")
         failures.append(
             "No bulleted list. Find a paragraph that enumerates things and "
             "convert it to a markdown list, exactly this shape:\n"
@@ -257,6 +281,7 @@ def critique(text: str, *, require_citations: bool = True) -> Critique:
 
     bolds = len(BOLD_RE.findall(text))
     if bolds == 0:
+        codes.append("no_bold")
         failures.append(
             "No bold emphasis. In each section, wrap the one sentence a skimmer "
             "must read in double asterisks, exactly this shape:\n"
@@ -269,6 +294,7 @@ def critique(text: str, *, require_citations: bool = True) -> Critique:
 
     opener = first_sentence(text)
     if not opener:
+        codes.append("no_opener")
         failures.append("No opening line found beneath the title.")
     elif len(opener.split()) > 35:
         warnings.append(
@@ -276,12 +302,15 @@ def critique(text: str, *, require_citations: bool = True) -> Critique:
         )
 
     if require_citations and not CITATION_RE.search(text):
+        codes.append("no_citations")
         failures.append(
             "No numbered citations. Every claim drawn from the transcripts must "
             "carry its excerpt number in square brackets, like [3]."
         )
 
-    return Critique(word_count=words, failures=failures, warnings=warnings)
+    return Critique(
+        word_count=words, failures=failures, warnings=warnings, codes=codes
+    )
 
 
 def system_prompt() -> str:

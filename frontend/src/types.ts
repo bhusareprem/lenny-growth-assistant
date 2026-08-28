@@ -2,7 +2,12 @@
  *  readable in one screen; if it grows, generate it from the OpenAPI schema. */
 
 export type SkillName = "qa" | "ship30_essay" | "artifact";
-export type ProviderName = "ollama" | "groq" | "openai" | "anthropic";
+export type ProviderName =
+  | "ollama"
+  | "groq"
+  | "openai"
+  | "gemini"
+  | "anthropic";
 
 export interface Citation {
   chunk_id: string;

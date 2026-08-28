@@ -64,6 +64,20 @@ def test_chain_deduplicates_and_drops_unknown_providers() -> None:
     assert settings.fallback_chain == ["ollama", "groq"]
 
 
+def test_gemini_is_served_by_the_openai_compatible_client() -> None:
+    """Gemini needed one factory function, not a new client.
+
+    Google serves the OpenAI wire format, so adding a fourth provider was pure
+    configuration - which is the property the model-toggle requirement is
+    really asking for.
+    """
+    from app.agent.providers.openai_compat import OpenAICompatProvider
+
+    provider = registry.get_provider("gemini")
+    assert isinstance(provider, OpenAICompatProvider)
+    assert "generativelanguage.googleapis.com" in provider._base_url
+
+
 def test_ollama_needs_no_credentials_but_cloud_providers_do() -> None:
     settings = Settings(llm_provider="ollama", groq_api_key="", anthropic_api_key="k")
     assert settings.is_configured("ollama") is True
@@ -73,7 +87,7 @@ def test_ollama_needs_no_credentials_but_cloud_providers_do() -> None:
 
 def test_switching_provider_needs_no_code_change() -> None:
     """The toggle requirement, stated as a test."""
-    for name in ("ollama", "groq", "openai", "anthropic"):
+    for name in ("ollama", "groq", "openai", "gemini", "anthropic"):
         provider = registry.get_provider(name)
         assert provider.name == name
         assert provider.model

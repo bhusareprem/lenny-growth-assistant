@@ -1,8 +1,10 @@
-"""OpenAI-compatible chat completions - covers both Groq and OpenAI.
+"""OpenAI-compatible chat completions - covers Groq, OpenAI and Gemini.
 
-Groq serves the OpenAI wire format, so one implementation with a different base
-URL, key and model covers both providers. That is why `LLM_PROVIDER=groq` and
-`LLM_PROVIDER=openai` require no new code: only configuration.
+All three serve the OpenAI wire format, so one implementation with a different
+base URL, key and model covers all of them. That is why `LLM_PROVIDER=groq`,
+`=openai` and `=gemini` require no new code: only configuration. Gemini was
+added to this codebase after the fact and needed exactly one factory function,
+which is the clearest evidence the abstraction is the right shape.
 
 Raw `httpx` rather than the `openai` package, on purpose - the surface we need
 is one POST, and avoiding the dependency keeps the container small and removes
@@ -161,4 +163,21 @@ def openai_provider() -> OpenAICompatProvider:
         base_url=settings.openai_base_url,
         api_key=settings.openai_api_key,
         model=settings.openai_model,
+    )
+
+
+def gemini_provider() -> OpenAICompatProvider:
+    """Google Gemini through its OpenAI-compatible endpoint.
+
+    Gemini 2.5 Flash is a *thinking* model: reasoning tokens are drawn from the
+    same budget as the answer, so a small `max_tokens` can return a completion
+    with `finish_reason: "length"` and no content at all. The default 4096 is
+    comfortable. An empty completion is already treated as a provider failure
+    by the registry, so the fallback chain covers the pathological case.
+    """
+    return OpenAICompatProvider(
+        name="gemini",
+        base_url=settings.gemini_base_url,
+        api_key=settings.gemini_api_key,
+        model=settings.gemini_model,
     )
