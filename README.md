@@ -306,7 +306,6 @@ The transcripts are **not** in this repository, and must not be added to it. Len
 | [docs/architecture.md](docs/architecture.md) | Schema, endpoints, component boundaries, ingestion and retrieval, routing, the model toggle, artifact security, deployment |
 | [docs/design.md](docs/design.md) | UI principles, information architecture, interaction states, responsive behaviour, accessibility |
 | [docs/manual-test-plan.md](docs/manual-test-plan.md) | Scripted UI walkthrough, including the failure paths |
-| [docs/demo-video-script.md](docs/demo-video-script.md) | Timed script for the demo recording |
 | [agent-transcripts/](agent-transcripts/) | Coding-agent logs, including the failed attempts and how they were corrected |
 
 ---
