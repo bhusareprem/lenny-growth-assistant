@@ -103,7 +103,7 @@ class OpenAICompatProvider(BaseProvider):
                 f"{self.name} rejected the request as too large (413). This is "
                 "usually a free-tier tokens-per-minute cap rather than a bug. "
                 "Lower RETRIEVAL_TOP_K to shrink the context, or use a provider "
-                f"with a higher limit. Provider said: {response.text[:400]}",
+                f"with a higher limit. Provider said: {_provider_message(response)}",
                 provider=self.name,
             )
         if response.status_code >= 400:
@@ -159,6 +159,26 @@ class OpenAICompatProvider(BaseProvider):
                 model=self._model,
                 detail=str(exc)[:200],
             )
+
+
+def _provider_message(response: httpx.Response) -> str:
+    """Pull the human-readable message out of an OpenAI-style error body.
+
+    Dumping the raw JSON and truncating it discards the useful part: the
+    limit and the requested size live at the end of `error.message`, behind a
+    long prefix of field names.
+    """
+    try:
+        body = response.json()
+    except ValueError:
+        return response.text[:300]
+    if isinstance(body, dict):
+        error = body.get("error")
+        if isinstance(error, dict) and error.get("message"):
+            return str(error["message"])[:400]
+        if isinstance(error, str):
+            return error[:400]
+    return response.text[:300]
 
 
 def groq_provider() -> OpenAICompatProvider:

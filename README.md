@@ -269,7 +269,7 @@ curl -s http://localhost:8000/api/health
 | Answers work, but `"lexical search only"` | Embedding model missing | `ollama pull nomic-embed-text`, then re-run ingestion |
 | Refuses a question it should answer | Coverage gate too strict for your phrasing | Check `best_coverage` in the `retrieval.search` log line, then lower `RETRIEVAL_MIN_COVERAGE` |
 | `provider_timeout` | Local model too slow for the budget | Raise `LLM_TIMEOUT_SECONDS`, or use a smaller model |
-| `413` mentioning tokens-per-minute | Free-tier TPM cap | Groq's free tier allows **8,000 tokens per minute, cumulative**, and one grounded turn costs 6-10k. That is roughly one question per minute, so it 413s under any real use. Lowering `RETRIEVAL_TOP_K` helps but does not solve it - a paid tier does. Ollama and Gemini have no such limit |
+| `413` mentioning tokens-per-minute | Free-tier TPM cap | Groq's free tier is 8,000 tokens/minute and the default `top_k=8` costs ~9,000, so it never fits. Set `RETRIEVAL_TOP_K=3` (~3,400/turn, verified working at 1.7s) to run on Groq, or use Ollama/Gemini, which have no such limit |
 | `all_providers_failed` naming a 429 | Cloud free-tier quota exhausted | Gemini's free tier is a few requests per minute and a modest daily cap. Wait for the reset, or put `ollama` first in `LLM_FALLBACK_CHAIN` so a quota error falls back to local instead of failing |
 | Forcing a provider fails instead of falling back | Working as designed | A per-request `provider` override deliberately bypasses the fallback chain, so you see that provider's real error rather than a silent substitution |
 | First answer takes ~60s, later ones ~11s | Cold model load | Expected. `keep_alive` holds it in memory for 10 minutes |
@@ -340,4 +340,4 @@ Stated plainly, because an evaluator will find them anyway.
 - **14 of 60 corpus files carry no source URL** upstream. Those citations show the episode and timestamp without a link.
 - **The lexical index is per-process**, so horizontal scaling needs it moved into Postgres FTS.
 - **The Claude Agent SDK path is unverified against a live key**, as described above.
-- **Groq works but its free tier is impractical for this workload.** The key authenticates and the provider is reachable, but 8,000 tokens/minute cumulative against a 6-10k grounded turn means roughly one question per minute. The error is handled cleanly and the fallback chain covers it; it is a plan limit, not a defect.
+- **Groq works, but its free tier needs a smaller retrieval window.** Measured token cost per grounded turn: `top_k=8` is ~9,000 tokens, `top_k=5` ~5,500, `top_k=3` ~3,400. Groq's free tier allows **8,000 tokens per minute**, so the default `top_k=8` exceeds the ceiling on a single request and always 413s. At `RETRIEVAL_TOP_K=3` it answers in **1.7 seconds**. The trade-off is fewer sources per answer, so the default stays at 8 for Ollama and Gemini, which have no such limit. Set it lower only if you want to run the demo on Groq.

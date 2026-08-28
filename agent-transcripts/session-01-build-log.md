@@ -4770,3 +4770,256 @@ Two small real fixes, then I'm done: my error truncation was hiding the useful n
 - `Bash: Export transcript and push the model picker`
 
 </details>
+
+
+### Assistant (turn 517)
+
+Done — you can now switch models from the UI.
+
+## What was missing
+
+The API already accepted a per-request `provider` override; the frontend just never sent it. The status panel showed state but wasn't a control.
+
+Now the provider rows **are** the control. Click the status pill and you get:
+
+```
+● Auto      Follow the configured chain: ollama → groq → gemini
+  ollama · default    llama3.2
+  groq                openai/gpt-oss-120b
+  openai              gpt-4o-mini          ← greyed: "No API key set."
+  gemini              gemini-2.5-flash
+  anthropic           claude-sonnet-5      ← greyed: "ANTHROPIC_API_KEY is not set."
+```
+
+Verified in-browser: selecting Gemini flips the pill to `gemini · gemini-2.5-flash`, shows a **pinned** badge, and the outgoing request carries `"provider":"gemini"`.
+
+Unavailable providers stay visible but disabled **with the reason** — hiding them would make your model toggle look narrower than it is, and disabling them silently is a dead end.
+
+## Two things testing this surfaced
+
+**A misleading error.** When a pinned provider fails, the message said *"Every provider in LLM_FALLBACK_CHAIN failed"* — wrong, since pinning deliberately bypasses the chain. It now names the pin and tells you to switch back to Auto.
+
+**Truncation hid the useful part.** A 413 carries the limit and requested size; I was cutting provider errors at 200 chars and throwing exactly those numbers away. Now 400.
+
+## The Groq reality
+
+The key works and the provider is reachable, but **the free tier is 8,000 tokens/minute cumulative** and a grounded turn costs 6–10k. That's roughly **one question per minute** — it 413s under any real use. I tried `top_k` at 6 and 5; both still failed, because the cap is per-minute, not per-request.
+
+That's a plan limit, not a defect. It's handled cleanly, the fallback chain covers it, and it's documented in known limitations. For your demo, **Ollama and Gemini have no such limit** — pick either in the picker.
+
+**167 tests, QA smoke 64/64**, everything pushed.
+
+Worth clicking through the picker yourself before recording — switching to Gemini mid-demo is a strong 10 seconds, but only if the quota has reset by then.
+
+
+### User (turn 518)
+
+also add this in script : Security expectation
+Treat generated HTML as untrusted. Explain and implement a reasonable isolation or sanitization strategy for artifact rendering. The evaluator should be able to understand what the viewer permits, blocks, and why.
+
+
+### Assistant (turn 519)
+
+Good catch — that's a graded requirement and the current script only glanced at it. Here's the full script with the security beat properly built out. Total runs ~2:55.
+
+---
+
+**PRE-FLIGHT:** Docker up, model warmed (ask one throwaway question, delete that chat). Clear the sidebar. Browser ~1280px. Don't run a live Gemini generation — quota. Every answer takes ~15s, so ask then keep talking.
+
+---
+
+**0:00 — ON CAMERA**
+
+Lenny's Podcast is the highest-signal corpus in product and growth. It's also about three quarters of a million words, which makes it completely unusable at the moment you actually need it. Tuesday afternoon, mid-decision.
+
+The workaround most teams use is asking a general chatbot. That's the dangerous one, because it answers every product question confidently, and its wrong answers look exactly like its right ones.
+
+So I built an assistant where you can check the answer.
+
+---
+
+**0:25 — [Type: How do you know when you have product/market fit? Enter immediately, keep talking]**
+
+Behind this, every turn does the same thing. It searches 1,420 passages from 60 sources using hybrid retrieval — keyword search plus vector search — and only then calls the model, with the evidence already in hand.
+
+**[Click "Show sources", then click a source title]**
+
+Every claim carries a marker, and every marker resolves to a real passage. And these aren't decorative — clicking one opens the episode at the timestamp the quote came from.
+
+**[Let it load, come back]**
+
+That's the difference between a citation and a link.
+
+---
+
+**1:10 — [Type: How do I replace the timing belt on a Honda Civic?]**
+
+Now watch what happens when the corpus doesn't cover something.
+
+**[Returns instantly. Pause.]**
+
+Under a second, because it never called the model at all. Retrieval scores how much of your question actually exists in the corpus, and below a measured threshold it stops and says so. A system that always answers can't be trusted on the answers it should give.
+
+---
+
+**1:30 — SECURITY — [Click Artifact pill. Type: Make an HTML one-pager on running effective user interviews. Keep talking while it generates]**
+
+It also generates documents, and this is where the interesting security problem is.
+
+This is HTML written by a language model, and that model just read two things it doesn't control: my message, and transcript passages retrieved by similarity to my message. So generated HTML is **untrusted input** — the same threat model as a comment field. The realistic attacks are stored cross-site scripting, a beacon that phones home when someone opens the artifact, and a fake login overlay.
+
+**[Panel opens. Click the "Blocked" tab.]**
+
+So it renders behind three independent layers.
+
+**First, a server-side sanitiser.** It's an allowlist, not a blocklist — anything not explicitly permitted is removed, so a tag nobody thought about fails closed.
+
+**Second, the iframe is sandboxed with zero permissions.** No scripts, no same-origin, no forms, no navigation.
+
+**Third, a content security policy of `default-src none`** inside the document itself.
+
+**[Point at the Blocked tab contents.]**
+
+And this tab tells you exactly what the viewer permits and blocks. It **permits** text, headings, tables, inline styles, links, and images embedded as data URIs. It **blocks** scripts and event handlers, all network access, frames and forms, and same-origin access to this page.
+
+The reason blocking all of that is free: an artifact is a *document*. None of it needs script or a network connection. So there's no trade-off being made — and this panel lists exactly what was stripped from this specific artifact, because a security control you can't see is one nobody trusts.
+
+*(Optional, if you want the hard proof — open DevTools and run:)*
+```bash
+document.querySelector('iframe.artifact__frame').sandbox.length
+```
+*Returns 0. Zero permissions granted. And reading `contentDocument` throws, because the frame is in an opaque origin and can't touch this page.*
+
+---
+
+**2:10 — [Point at "ollama · llama3.2" under an answer. Then open the status panel.]**
+
+Everything you've seen ran on my laptop. Llama 3.2 through Ollama, nomic-embed-text for vector search, Postgres with pgvector. No API key touched any of it.
+
+**[Click a different provider in the picker.]**
+
+And the model is switchable from here, not just visible — Gemini and Groq are configured and ready. Providers without a key stay listed but greyed, with the reason.
+
+---
+
+**2:30 — ON CAMERA**
+
+One trade-off worth naming. The obvious design is to give the model a search tool and let it decide when to use it. I tried that, and this model won't do it reliably — it skips the search and answers from memory, which is exactly the failure the product exists to prevent.
+
+So retrieval isn't the model's decision. Every grounded turn searches first, always.
+
+What I gave up is multi-hop reasoning — a question needing two chained lookups only gets one round of evidence. What I got back is grounding that behaves identically on a two-gigabyte local model and a frontier one.
+
+For an assistant whose entire value is trustworthy citations, predictable beats clever. That's the call I'd defend.
+
+**[STOP.]**
+
+---
+
+**If you overrun:** cut the DevTools proof and the optional line about greyed-out providers. Don't cut the "permits / blocks / why" trio — that's the exact wording the brief asks for.
+
+**If you're at 2:00 and need more:** the refusal and the security beat are your two strongest. Everything else is standard RAG demo.
+
+
+### User (turn 520)
+
+I have deleted old groq key that was in chat and pasted new one with new account and limits test it but dont spend all limit i need it for demo
+
+
+### Assistant (turn 521)
+
+Good — rotated. Let me test with the cheapest possible calls and read the rate-limit headers, which tells us your actual limits without spending tokens.
+
+
+### Assistant (turn 522)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Check how the new Groq key is named in .env`
+
+</details>
+
+
+### Assistant (turn 523)
+
+Named correctly this time. Testing with a free `/models` call first to read your limits.
+
+
+### Assistant (turn 524)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Verify new Groq key and read rate limits cheaply`
+
+</details>
+
+
+### Assistant (turn 525)
+
+Key works. Your limits: **8,000 tokens/minute, 1,000 requests/day** — same free tier, but the token bucket refills in ~3 seconds rather than blocking for a full minute. That test cost 118 tokens.
+
+Given chunks average 985 tokens, `top_k=8` (~9–10k) can never fit, but `top_k=5` (~5.5k) should. One test to confirm.
+
+
+### Assistant (turn 526)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: One grounded turn on Groq at top_k=5`
+
+</details>
+
+
+### Assistant (turn 527)
+
+Still 413 at `top_k=5`, and my truncation is *still* cutting the numbers. Let me measure the actual prompt size locally — zero Groq quota.
+
+
+### Assistant (turn 528)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Measure actual prompt size per top_k locally`
+
+</details>
+
+
+### Assistant (turn 529)
+
+`as_context()` caps at 24,000 chars, and real tokenization for transcript text is ~2.5 chars/token — so `top_k=5` is still ~9k tokens, over the 8k ceiling. `top_k=3` (~5.7k) should fit.
+
+Let me also fix the error so it surfaces the provider's actual numbers instead of a truncated JSON blob.
+
+
+### Assistant (turn 530)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Fix error extraction and test Groq at top_k=3`
+
+</details>
+
+
+### Assistant (turn 531)
+
+**Groq works** — 1.7s, 3,441 input tokens, cited answer. The lever is `RETRIEVAL_TOP_K`.
+
+Restoring the default and documenting the real numbers.
+
+
+### Assistant (turn 532)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Restore defaults and verify`
+
+</details>
+
+
+### Assistant (turn 533)
+
+<details><summary>Tool calls</summary>
+
+- `Bash: Final QA, export transcript, push`
+
+</details>
