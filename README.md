@@ -190,8 +190,16 @@ The active provider is visible in the UI status panel and at `GET /api/config`.
 
 ## Running tests
 
+With only Docker installed:
+
 ```bash
-python -m pytest -q
+docker compose run --rm test
+```
+
+Or on the host, if you have Python:
+
+```bash
+pip install -r requirements-dev.txt && python -m pytest -q
 ```
 
 **138 tests, ~2 seconds, no infrastructure required.** No Postgres, no Ollama, no API keys. Persistence and API tests run against in-memory SQLite; the model is stubbed so the tests assert contracts rather than model behaviour.

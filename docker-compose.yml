@@ -81,6 +81,17 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
+  # Runs the automated suite in a container, so an evaluator needs nothing
+  # installed but Docker. Behind a profile, so `docker compose up` ignores it.
+  #   docker compose run --rm test
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    profiles: ["test"]
+    restart: "no"
+
 volumes:
   pgdata:
   # Holds the cloned corpus so a rebuild does not re-download it. Not committed
