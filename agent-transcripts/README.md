@@ -15,7 +15,7 @@ Only this project's session was exported. The machine held ~58 MB of transcripts
 
 ## The failures, in order
 
-Twelve problems worth recording. Nine were real defects, two were caught by tests rather than by using the app, and one was a test that was wrong about the code.
+Thirteen problems worth recording. Nine were real defects, one was a wrong diagnosis of my own, two were caught by tests rather than by using the app, and one was a test that was wrong about the code.
 
 ### 1. The relevance gate was in a place where it could never work
 
@@ -248,7 +248,31 @@ actively misleading. The new one is the best onboarding surface in the product.
 
 ---
 
-### 12. An accessibility bug found by reading the accessibility tree
+### 12. A wrong diagnosis: "the Groq keys are revoked"
+
+**Claim made.** Both supplied Groq keys returned `HTTP 403, error code 1010`,
+and they were written off as revoked. That conclusion was recorded in the
+README and acted on.
+
+**It was wrong.** Cloudflare error 1010 is a *client fingerprint* block, not an
+auth failure - a bad key returns `401` with a JSON body. The probe script used
+`urllib`, whose default `Python-urllib/3.12` User-Agent Groq's edge rejects.
+The application uses `httpx`, which was never blocked.
+
+Retested with `httpx`: **200 OK, 14 models.** The keys were fine the whole time.
+
+**What actually needed fixing** was mundane by comparison: the key was pasted
+into `.env` as `New_Key_groq`, a name nothing reads, and `GROQ_MODEL` pointed
+at `llama-3.3-70b-versatile`, which Groq has decommissioned.
+
+**The lesson worth keeping.** The diagnostic tool differed from the production
+client, so it produced a failure the product would never have seen. Reading the
+*specific* error code rather than the status class would have caught it
+immediately - 403/1010 and 401 mean entirely different things.
+
+---
+
+### 13. An accessibility bug found by reading the accessibility tree
 
 The session list rendered as `button [ref_7]` with **no accessible name**, because the row was a `<button>` containing a `role="button"` span for delete. Nested interactive controls are invalid HTML and break name computation.
 

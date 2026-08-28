@@ -58,7 +58,9 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.2"
 
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    # llama-3.3-70b-versatile was decommissioned; check GET /openai/v1/models
+    # for what is currently served before changing this.
+    groq_model: str = "openai/gpt-oss-120b"
     groq_base_url: str = "https://api.groq.com/openai/v1"
 
     openai_api_key: str = ""

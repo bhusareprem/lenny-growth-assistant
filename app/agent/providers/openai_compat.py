@@ -93,6 +93,19 @@ class OpenAICompatProvider(BaseProvider):
             raise ProviderUnavailable(
                 f"{self.name} rate limited this request (429).", provider=self.name
             )
+        if response.status_code == 413:
+            # Free tiers cap tokens-per-minute well below what a grounded turn
+            # costs: Groq's free tier allows 8,000 TPM and one turn with
+            # RETRIEVAL_TOP_K=8 is around 10,000. The generic "unavailable"
+            # message sends an operator hunting for a network problem, so name
+            # the real cause and the real lever.
+            raise ProviderUnavailable(
+                f"{self.name} rejected the request as too large (413). This is "
+                "usually a free-tier tokens-per-minute cap rather than a bug. "
+                "Lower RETRIEVAL_TOP_K to shrink the context, or use a provider "
+                f"with a higher limit. Provider said: {response.text[:200]}",
+                provider=self.name,
+            )
         if response.status_code >= 400:
             raise ProviderUnavailable(
                 f"{self.name} returned {response.status_code}: {response.text[:300]}",

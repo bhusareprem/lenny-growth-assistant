@@ -269,6 +269,7 @@ curl -s http://localhost:8000/api/health
 | Answers work, but `"lexical search only"` | Embedding model missing | `ollama pull nomic-embed-text`, then re-run ingestion |
 | Refuses a question it should answer | Coverage gate too strict for your phrasing | Check `best_coverage` in the `retrieval.search` log line, then lower `RETRIEVAL_MIN_COVERAGE` |
 | `provider_timeout` | Local model too slow for the budget | Raise `LLM_TIMEOUT_SECONDS`, or use a smaller model |
+| `413` mentioning tokens-per-minute | Free-tier TPM cap | A grounded turn costs ~10k tokens; Groq's free tier allows 8k/min. Lower `RETRIEVAL_TOP_K` to ~5, or use Gemini |
 | `all_providers_failed` naming a 429 | Cloud free-tier quota exhausted | Gemini's free tier is a few requests per minute and a modest daily cap. Wait for the reset, or put `ollama` first in `LLM_FALLBACK_CHAIN` so a quota error falls back to local instead of failing |
 | Forcing a provider fails instead of falling back | Working as designed | A per-request `provider` override deliberately bypasses the fallback chain, so you see that provider's real error rather than a silent substitution |
 | First answer takes ~60s, later ones ~11s | Cold model load | Expected. `keep_alive` holds it in memory for 10 minutes |

@@ -230,6 +230,24 @@ async def test_rate_limit_is_retryable_so_the_chain_advances(patch_httpx) -> Non
         await _openai_provider().complete(MESSAGES)
 
 
+async def test_payload_too_large_names_the_real_cause(patch_httpx) -> None:  # noqa: ANN001
+    """A 413 from a free tier is a quota cap, not an outage.
+
+    Groq's free tier allows 8,000 tokens per minute; one grounded turn with
+    RETRIEVAL_TOP_K=8 costs about 10,000. Reporting that as a generic
+    "unavailable" sends an operator looking for a network fault.
+    """
+    patch_httpx(
+        lambda _r: httpx.Response(413, json={"error": {"message": "Request too large"}})
+    )
+    with pytest.raises(ProviderUnavailable) as excinfo:
+        await _openai_provider().complete(MESSAGES)
+
+    message = str(excinfo.value)
+    assert "413" in message
+    assert "RETRIEVAL_TOP_K" in message
+
+
 async def test_rejected_key_is_reported_as_configuration_not_an_outage(patch_httpx) -> None:  # noqa: ANN001
     patch_httpx(lambda _r: httpx.Response(401, json={"error": "bad key"}))
     with pytest.raises(ProviderNotConfigured):
